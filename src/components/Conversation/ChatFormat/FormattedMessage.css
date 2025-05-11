@@ -1,0 +1,236 @@
+.code-block {
+  background-color: var(--code-bg-color, rgba(0, 0, 0, 0.05));
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin: 0.25rem 0;
+  overflow-x: auto;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
+  font-size: 90%;
+  width: 100%;
+  color: var(--code-text-color, inherit);
+}
+
+.inline-code-wrapper {
+  display: inline;
+}
+
+.inline-code {
+  background-color: var(--inline-code-bg-color, rgba(0, 0, 0, 0.05));
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
+  font-size: 90%;
+  white-space: normal;
+  color: var(--inline-code-text-color, inherit);
+}
+
+.markdown-content {
+  line-height: 1.4;
+  color: var(--text-color, inherit);
+}
+
+.markdown-content p {
+  margin: 0.25rem 0;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: var(--strong-text-color, inherit);
+}
+
+/* Lists */
+.markdown-list {
+  margin: 0.25rem 0;
+  padding-left: 1.2em;
+  line-height: 1.4;
+  list-style: none;
+}
+
+.markdown-list-item {
+  position: relative;
+  padding-left: 1em;
+  list-style-type: none;
+}
+
+.markdown-list-item::before {
+  position: absolute;
+  left: -0.2em;
+  content: "•";
+  color: var(--bullet-color, inherit);
+}
+
+/* Nested lists */
+.markdown-list .markdown-list {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 1.2em;
+}
+
+.markdown-list .markdown-list .markdown-list-item::before {
+  content: "◦";
+}
+
+.markdown-list .markdown-list .markdown-list .markdown-list-item::before {
+  content: "▪";
+}
+
+/* Ordered lists */
+ol.markdown-list {
+  counter-reset: list-counter;
+  list-style: none;
+}
+
+ol.markdown-list .markdown-list-item {
+  counter-increment: list-counter;
+  padding-left: 1.5em;
+}
+
+ol.markdown-list .markdown-list-item::before {
+  content: counter(list-counter) ".";
+  left: -0.5em;
+}
+
+/* Nested ordered lists */
+ol.markdown-list ol.markdown-list {
+  counter-reset: nested-counter;
+}
+
+ol.markdown-list ol.markdown-list .markdown-list-item {
+  counter-increment: nested-counter;
+}
+
+ol.markdown-list ol.markdown-list .markdown-list-item::before {
+  content: counter(nested-counter, lower-alpha) ".";
+}
+
+ol.markdown-list ol.markdown-list ol.markdown-list .markdown-list-item::before {
+  content: counter(nested-counter, lower-roman) ".";
+}
+
+.markdown-content a {
+  color: var(--link-color, #1890ff);
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid var(--blockquote-border-color, rgba(0, 0, 0, 0.1));
+  padding-left: 1em;
+  margin: 0.25rem 0;
+  color: var(--blockquote-text-color, rgba(0, 0, 0, 0.65));
+}
+
+.markdown-content pre {
+  margin: 0;
+  padding: 0;
+}
+
+.response-time {
+  font-size: 0.8rem;
+  color: var(--response-time-color, #666);
+  margin-top: 0.5rem;
+  margin-bottom: 0.7rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: var(--response-time-bg, rgba(0, 0, 0, 0.05));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.response-time span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.response-time span:hover {
+  color: #1a1a1a;
+}
+
+.response-time-label {
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+/* Dark mode styles */
+.dark .code-block {
+  --code-bg-color: rgba(59, 130, 246, 0.15);
+  --code-text-color: #e1e1e1;
+}
+
+.dark .inline-code {
+  --inline-code-bg-color: rgba(59, 130, 246, 0.15) !important;
+  --inline-code-text-color: #e1e1e1;
+}
+
+.dark .markdown-content {
+  --text-color: #e1e1e1;
+  --strong-text-color: #ffffff;
+  --bullet-color: #e1e1e1;
+  --link-color: #40a9ff;
+  --blockquote-border-color: rgba(255, 255, 255, 0.1);
+  --blockquote-text-color: rgba(255, 255, 255, 0.65);
+  --response-time-color: #a0a0a0;
+  --response-time-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* Light mode styles */
+[data-theme="light"] .code-block {
+  --code-bg-color: rgba(0, 0, 0, 0.05);
+  --code-text-color: #000000;
+}
+
+[data-theme="light"] .inline-code {
+  --inline-code-bg-color: rgba(0, 0, 0, 0.05);
+  --inline-code-text-color: #000000;
+}
+
+.markdown-content {
+  --text-color: #000000;
+  --strong-text-color: #000000;
+  --bullet-color: #000000;
+  --link-color: #1890ff;
+  --blockquote-border-color: rgba(0, 0, 0, 0.1);
+  --blockquote-text-color: rgba(0, 0, 0, 0.65);
+  --response-time-color: #666;
+  --response-time-bg: rgba(0, 0, 0, 0.05);
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: var(--cursor-color, currentColor);
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

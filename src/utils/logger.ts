@@ -17,7 +17,7 @@ interface LogEntry {
 
 class Logger {
   private static readonly MAX_LOGS = 1000;
-  private static readonly STORAGE_KEY = "query_up_logs";
+  private static readonly STORAGE_KEY = "PC_promptCueLogs";
 
   /**
    * Log an event to local storage
@@ -91,10 +91,10 @@ class Logger {
    * Get or create session ID
    */
   private static getSessionId(): string {
-    let sessionId = sessionStorage.getItem("query_up_session_id");
+    let sessionId = sessionStorage.getItem("prompt_cue_session_id");
     if (!sessionId) {
       sessionId = `session_${Date.now()}`;
-      sessionStorage.setItem("query_up_session_id", sessionId);
+      sessionStorage.setItem("prompt_cue_session_id", sessionId);
     }
     return sessionId;
   }

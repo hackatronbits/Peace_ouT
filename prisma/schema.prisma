@@ -1,0 +1,30 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PlatformStats {
+  id           Int      @id @default(autoincrement())
+  timestamp    DateTime @default(now())
+  eventType    String
+  eventName    String
+  severity     String   @default("info")
+  component    String?
+  action       String?
+  status       String?
+  duration     Float?
+  errorMessage String?
+  stackTrace   String?
+  metadata     Json? // This will store the Record<string, any>
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([timestamp])
+  @@index([eventType])
+  @@index([severity])
+}

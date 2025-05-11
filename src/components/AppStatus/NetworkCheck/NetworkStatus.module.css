@@ -1,0 +1,91 @@
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+}
+
+.networkStatusModal {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.networkStatusModal > div {
+  padding: 0;
+}
+
+.container {
+  text-align: center;
+  padding: 32px 24px;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.iconContainer {
+  margin-bottom: 24px;
+  position: relative;
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pulseCircle {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 77, 79, 0.1);
+  animation: pulse 2s infinite;
+}
+
+.disconnectIcon {
+  font-size: 40px;
+  color: #ff4d4f;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  margin: 0 0 16px;
+  color: #262626;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.description {
+  color: #595959;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.retryButton {
+  border-radius: 8px;
+  height: 44px;
+  padding: 0 24px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.retryButton:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}

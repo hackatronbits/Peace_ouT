@@ -1,0 +1,123 @@
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: all 0.3s ease;
+}
+
+/* Light mode */
+.loading-screen.light {
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+}
+
+.loading-screen.light .loading-title {
+  background: linear-gradient(90deg, #3182ce, #805ad5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.loading-screen.light .loading-subtitle {
+  color: #4a5568;
+}
+
+.loading-screen.light .ant-spin {
+  color: #3182ce;
+}
+
+/* Dark mode */
+.loading-screen.dark {
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+}
+
+.loading-screen.dark .loading-title {
+  background: linear-gradient(90deg, #4299e1, #9f7aea);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.loading-screen.dark .loading-subtitle {
+  color: #a0aec0;
+}
+
+.loading-screen.dark .ant-spin {
+  color: #4299e1;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.logo-container {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.loading-title {
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+  background-size: 200% auto;
+  animation: shimmer 2s infinite;
+}
+
+.loading-subtitle {
+  font-size: 16px;
+  margin: 0;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Ant Design Spin customization */
+.loading-screen .ant-spin {
+  transition: color 0.3s ease;
+}
+
+.loading-screen .ant-spin-dot-item {
+  background-color: currentColor;
+}

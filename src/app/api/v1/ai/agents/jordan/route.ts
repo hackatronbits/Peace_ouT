@@ -1,6 +1,7 @@
 import { aiAgent } from "../../../../../../utils/agent/tech/aiAgent";
 import { NextRequest, NextResponse } from "next/server";
 import { logAPIError, logAPIInfo } from "../../../../../../utils/apiLogger";
+import { rateLimit } from "../../../../../../config/rateLimit";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -22,6 +23,7 @@ interface TechAiAgentRequest {
  * @param res - The HTTP response object.
  */
 export async function POST(req: NextRequest) {
+  return rateLimit("JORDAN")(req, async (req) => {
     try {
       // Enable CORS
       const corsHeaders = {
@@ -107,11 +109,17 @@ export async function POST(req: NextRequest) {
             chatId: requestBody.chatId,
             model: requestBody.model,
             responseLength: outcome.response?.length,
+            responseTime: outcome.responseTime,
+            responseTokens: outcome.responseTokens,
           },
         });
 
         return NextResponse.json(
-          { response: outcome.response },
+          {
+            response: outcome.response,
+            responseTime: outcome.responseTime,
+            responseTokens: outcome.responseTokens,
+          },
           { status: 200, headers: corsHeaders },
         );
       } catch (error) {
@@ -148,4 +156,5 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+  });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { logAPIError, logAPIInfo } from "../../../../../utils/apiLogger";
+import { rateLimit } from "../../../../../config/rateLimit";
 import { MODELS, ModelProvider } from "../../../../../config/modelConfig";
 import { formatImageGenerationRequest } from "../../../../../utils/imageGenerationUtils";
 
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
   let responseTime: number;
   let requestBody: Partial<ImageGenerationRequest> = {};
 
+  return rateLimit("IMAGE")(req, async (req) => {
     try {
       // Enable CORS
       const corsHeaders = {
@@ -179,4 +181,5 @@ export async function POST(req: NextRequest) {
         { status: 500, headers: { "Access-Control-Allow-Origin": "*" } },
       );
     }
+  });
 }

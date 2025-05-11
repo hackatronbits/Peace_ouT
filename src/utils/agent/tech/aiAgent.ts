@@ -4,6 +4,8 @@ import { logAPIError, logAPIInfo } from "../../apiLogger";
 
 interface AIAgentResponse {
   response: string | null;
+  responseTime?: Number;
+  responseTokens?: Number;
   error: string | null;
   statusCode: number;
 }

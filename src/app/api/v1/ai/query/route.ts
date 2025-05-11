@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { logAPIError, logAPIInfo } from "../../../../../utils/apiLogger";
+import { rateLimit } from "../../../../../config/rateLimit";
 import { MODELS } from "../../../../../config/modelConfig";
 
 // Define interfaces for type safety
@@ -14,7 +15,8 @@ interface ModelChatRequest {
   }>;
   // Add model settings
   temperature?: number;
-  maxTokens?: number;
+  maxOutput?: number;
+  safeOutput?: number;
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
@@ -23,10 +25,30 @@ interface ModelChatRequest {
   chatId: string;
 }
 
+// Model-specific API endpoints
+export const MODEL_ENDPOINTS: Record<string, string> = {
+  "gpt-4o-mini": "https://api.openai.com/v1/chat/completions",
+  "gpt-4o": "https://api.openai.com/v1/chat/completions",
+  "gpt-3.5-turbo-0125": "https://api.openai.com/v1/chat/completions",
+  "claude-3-5-sonnet-20241022": "https://api.anthropic.com/v1/messages",
+  "claude-3-5-haiku-20241022": "https://api.anthropic.com/v1/messages",
+  "claude-3-opus-20240229": "https://api.anthropic.com/v1/messages",
+  "gemini-pro":
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+  "gemini-2.0-flash-exp":
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+  "gemini-1.5-pro":
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+  "gemini-1.5-flash":
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+  "deepseek-chat": "https://api.deepseek.com/v1/chat/completions",
+};
+
 export async function POST(req: NextRequest) {
   let responseTime: number;
   let requestBody: Partial<ModelChatRequest> = {};
 
+  return rateLimit("QUERY")(req, async (req) => {
     try {
       // Enable CORS
       const corsHeaders = {
@@ -54,7 +76,7 @@ export async function POST(req: NextRequest) {
           prompt,
           messages = [],
           temperature,
-          maxTokens,
+          safeOutput,
           topP,
           frequencyPenalty,
           presencePenalty,
@@ -114,8 +136,7 @@ export async function POST(req: NextRequest) {
           case "chatgpt-4o-latest":
           case "o1":
           case "o1-mini":
-          case "gpt-3.5-turbo-16k":
-          case "gpt-3.5-turbo":
+          case "gpt-3.5-turbo-0125":
             try {
               apiResponse = await axios.post(
                 MODELS[model].apiEndpoint,
@@ -126,7 +147,7 @@ export async function POST(req: NextRequest) {
                     { role: "system", content: customInstructions },
                     { role: "user", content: prompt },
                   ],
-                  max_tokens: maxTokens,
+                  max_tokens: safeOutput,
                   temperature,
                   top_p: topP,
                   frequency_penalty: frequencyPenalty,
@@ -143,6 +164,79 @@ export async function POST(req: NextRequest) {
             } catch (apiError) {
               const statusCode = apiError.response?.status || 500;
 
+              const errorMessage =
+                apiError.response?.data?.error?.message || "API request failed";
+
+              logAPIError("ai_query", "ai_provider_error", apiError, {
+                component: "query",
+                duration: Date.now() - startTime,
+                metadata: {
+                  chatId,
+                  model,
+                  statusCode: apiError.response?.status,
+                  errorMessage:
+                    apiError.response?.data?.error?.message || apiError.message,
+                  errorType: "ai_provider",
+                },
+              });
+
+              return NextResponse.json(
+                { error: errorMessage },
+                {
+                  status: statusCode,
+                  headers: corsHeaders,
+                },
+              );
+            }
+
+            logAPIInfo("ai_query", "request_completed", {
+              component: "query",
+              duration: Date.now() - startTime,
+              metadata: {
+                chatId,
+                model,
+                status: "success",
+                responseLength: apiResponse.data?.length || 0,
+                responseTokens: apiResponse.data.usage.completion_tokens,
+                responseTime: Date.now() - startTime,
+              },
+            });
+
+            responseTime = Date.now() - startTime;
+            return NextResponse.json(
+              {
+                response: apiResponse.data.choices[0].message.content,
+                model: model,
+                responseTokens: apiResponse.data.usage.completion_tokens,
+                responseTime,
+              },
+              {
+                headers: corsHeaders,
+              },
+            );
+
+          case "claude-3-5-sonnet-20241022":
+          case "claude-3-5-haiku-20241022":
+          case "claude-3-opus-20240229":
+            try {
+              apiResponse = await axios.post(
+                MODELS[model].apiEndpoint,
+                {
+                  model,
+                  max_tokens: safeOutput,
+                  temperature,
+                  top_p: topP,
+                  messages: [...messages, { role: "user", content: prompt }],
+                },
+                {
+                  headers: {
+                    "x-api-key": apiKey,
+                    "Content-Type": "application/json",
+                  },
+                },
+              );
+            } catch (apiError) {
+              const statusCode = apiError.response?.status || 500;
               const errorMessage =
                 apiError.response?.data?.error || "API request failed";
 
@@ -176,7 +270,7 @@ export async function POST(req: NextRequest) {
                 model,
                 status: "success",
                 responseLength: apiResponse.data?.length || 0,
-                tokensUsed: apiResponse.data?.tokens_used,
+                responseTokens: apiResponse.data.usage.output_tokens,
                 responseTime: Date.now() - startTime,
               },
             });
@@ -184,35 +278,66 @@ export async function POST(req: NextRequest) {
             responseTime = Date.now() - startTime;
             return NextResponse.json(
               {
-                response: apiResponse.data.choices[0].message.content,
-                model: model,
-                tokens_used: apiResponse.data.usage.total_tokens,
+                response: apiResponse.data.content[0].text,
+                model,
                 responseTime,
+                responseTokens: apiResponse.data.usage.output_tokens,
               },
               {
                 headers: corsHeaders,
               },
             );
-
-          case "claude-2":
+          case "deepseek-chat":
             try {
+              const requestData = {
+                model: model,
+                messages: [
+                  ...messages,
+                  {
+                    role: "user",
+                    content: prompt,
+                  },
+                ],
+                temperature: temperature,
+                max_tokens: safeOutput,
+                top_p: topP,
+                frequency_penalty: frequencyPenalty,
+                presence_penalty: presencePenalty,
+                stream: false,
+              };
+
+              const headers = {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              };
+
               apiResponse = await axios.post(
                 MODELS[model].apiEndpoint,
+                requestData,
                 {
-                  model: "claude-2",
-                  messages: [...messages, { role: "user", content: prompt }],
-                },
-                {
-                  headers: {
-                    "x-api-key": apiKey,
-                    "Content-Type": "application/json",
-                  },
+                  headers,
                 },
               );
             } catch (apiError) {
               const statusCode = apiError.response?.status || 500;
+              console.log(apiError.response?.data?.error?.message);
+
               const errorMessage =
-                apiError.response?.data?.error || "API request failed";
+                apiError.response?.data?.error?.message || "API request failed";
+
+              logAPIError("ai_query", "ai_provider_error", apiError, {
+                component: "query",
+                duration: Date.now() - startTime,
+                metadata: {
+                  chatId,
+                  model,
+                  statusCode: apiError.response?.status,
+                  errorMessage:
+                    apiError.response?.data?.error?.message || apiError.message,
+                  errorType: "ai_provider",
+                },
+              });
+
               return NextResponse.json(
                 { error: errorMessage },
                 {
@@ -222,11 +347,25 @@ export async function POST(req: NextRequest) {
               );
             }
 
+            logAPIInfo("ai_query", "request_completed", {
+              component: "query",
+              duration: Date.now() - startTime,
+              metadata: {
+                chatId,
+                model,
+                status: "success",
+                responseLength: apiResponse.data?.length || 0,
+                responseTokens: apiResponse.data.usage.completion_tokens,
+                responseTime: Date.now() - startTime,
+              },
+            });
+
             responseTime = Date.now() - startTime;
             return NextResponse.json(
               {
-                response: apiResponse.data.content[0].text,
-                model,
+                response: apiResponse.data.choices[0].message.content,
+                model: model,
+                responseTokens: apiResponse.data.usage.completion_tokens,
                 responseTime,
               },
               {
@@ -242,7 +381,7 @@ export async function POST(req: NextRequest) {
             const geminiConfig = {
               temperature: temperature,
               topP: topP,
-              maxOutputTokens: maxTokens,
+              maxOutputTokens: safeOutput,
             };
 
             try {
@@ -315,7 +454,8 @@ export async function POST(req: NextRequest) {
                 responseLength:
                   apiResponse.data.candidates[0].content.parts[0].text.length ||
                   0,
-                tokensUsed: apiResponse.data?.tokens_used,
+                responseTokens:
+                  apiResponse.data.usageMetadata.candidatesTokenCount,
                 responseTime: Date.now() - startTime,
               },
             });
@@ -326,6 +466,8 @@ export async function POST(req: NextRequest) {
                 response: apiResponse.data.candidates[0].content.parts[0].text,
                 model,
                 responseTime,
+                responseTokens:
+                  apiResponse.data.usageMetadata.candidatesTokenCount,
               },
               {
                 headers: corsHeaders,
@@ -384,4 +526,5 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+  });
 }

@@ -1,30 +1,55 @@
-import React, { useState, useMemo } from "react";
-import { Button, Modal, Dropdown, Input } from "antd";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { Button, Modal, Dropdown, Input, Tooltip, Divider, App } from "antd";
 import type { MenuProps } from "antd";
 import {
   PlusCircleFilled,
   DeleteOutlined,
-  EditOutlined,
-  InfoCircleOutlined,
   SearchOutlined,
   SortAscendingOutlined,
+  ClockCircleOutlined,
+  InboxOutlined,
+  CommentOutlined,
+  FolderAddFilled,
+  CloseOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
 import { useApp } from "../../../context/AppContext";
+import ArchivedChats from "./ArchivedChats";
+import "./ChatInfo.css";
+import ProjectFolderBlock from "./ProjectFolder/ProjectFolderBlock";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import DraggableChatItem from "./DraggableChatItem";
+import { getMainListMenuItems } from "../../../utils/chatUtils";
+import ChatInfoModal from "./ChatOpsModals/ChatInfoModal";
+import { ChatInfo } from "../../../utils/chatUtils";
+import MoveFolderModal from "./ChatOpsModals/MoveFolderModal";
 
 interface ChatManagementProps {
   isCollapsed: boolean;
+  onToggleSidebar: () => void;
 }
 
 type SortOption = "recent" | "oldest" | "az" | "za";
 
-const ChatManagement: React.FC<ChatManagementProps> = ({ isCollapsed }) => {
+const ChatManagement: React.FC<ChatManagementProps> = ({
+  isCollapsed,
+  onToggleSidebar,
+}) => {
   const {
     chats,
     activeChat,
     setActiveChat,
     startNewChat,
     deleteChat,
-    setChats,
+    isTemporaryMode,
+    archiveChat,
+    archivedChats,
+    exportChat,
+    togglePinChat,
+    projectFolders,
+    createProjectFolder,
+    addChatToFolder,
   } = useApp();
   const [hoveredChatId, setHoveredChatId] = useState<string | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -32,54 +57,45 @@ const ChatManagement: React.FC<ChatManagementProps> = ({ isCollapsed }) => {
   const [isEditingTitle, setIsEditingTitle] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState("");
   const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [selectedChatInfo, setSelectedChatInfo] = useState<ChatInfo | null>(
+    null,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("recent");
-  const [selectedChatInfo, setSelectedChatInfo] = useState<{
-    id: string;
-    title: string;
-    model: string;
-    messagesCount: number;
-    size: number;
-    createdAt: string;
-  } | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const { message } = App.useApp();
 
-  // Sort menu items
-  const menuItems: MenuProps["items"] = [
-    {
-      key: "sort",
-      type: "group",
-      label: "Sort By",
-      children: [
-        {
-          key: "recent",
-          label: "Recent First",
-        },
-        {
-          key: "oldest",
-          label: "Oldest First",
-        },
-        {
-          key: "az",
-          label: "A - Z",
-        },
-        {
-          key: "za",
-          label: "Z - A",
-        },
-      ],
-    },
-  ];
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
 
-  const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
-    setSortOption(key as SortOption);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const handleMenuClick: MenuProps["onClick"] = (e) => {
+    setSortOption(e.key as SortOption);
   };
+
+  // Get all chat IDs that are in folders
+  const chatsInFolders = projectFolders.reduce((acc: string[], folder) => {
+    return [...acc, ...folder.chatIds];
+  }, []);
 
   // Filter and sort chats
   const filteredAndSortedChats = useMemo(() => {
-    let result = [...chats];
+    // Get all non-archived chats and filter out chats that are in folders
+    let result = chats.filter(
+      (chat) => !chat.isArchived && !chatsInFolders.includes(chat.id),
+    );
 
-    // First filter by search query
-    if (searchQuery) {
+    // Then filter by search query if it exists
+    if (searchQuery.trim()) {
       result = result.filter((chat) =>
         chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
       );
@@ -108,290 +124,393 @@ const ChatManagement: React.FC<ChatManagementProps> = ({ isCollapsed }) => {
     }
 
     return result;
-  }, [chats, searchQuery, sortOption]);
+  }, [chats, searchQuery, sortOption, chatsInFolders]);
 
-  const handleChatClick = (chatId: string) => {
-    const selectedChat = chats.find((chat) => chat.id === chatId);
-    if (selectedChat) {
-      setActiveChat(selectedChat);
-      localStorage.setItem("selectedModel", selectedChat.model);
+  // Get pinned and unpinned chats from filtered results
+  const pinnedChats = useMemo(() => {
+    // First get pinned chats
+    const pinned = filteredAndSortedChats.filter((chat) => chat.isPinned);
+
+    // Then apply the current sort option
+    switch (sortOption) {
+      case "recent":
+      case "oldest":
+        // For time-based sorting, still prioritize pin time but respect the direction
+        return sortOption === "recent"
+          ? pinned.sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0))
+          : pinned.sort((a, b) => (a.pinnedAt || 0) - (b.pinnedAt || 0));
+      case "az":
+        return pinned.sort((a, b) => a.title.localeCompare(b.title));
+      case "za":
+        return pinned.sort((a, b) => b.title.localeCompare(a.title));
+      default:
+        return pinned;
     }
-  };
+  }, [filteredAndSortedChats, sortOption]);
 
-  const handleDeleteClick = (e: React.MouseEvent, chatId: string) => {
-    e.stopPropagation();
-    setChatToDelete(chatId);
-    setDeleteModalVisible(true);
-  };
+  const unpinnedChats = useMemo(() => {
+    // Get unpinned chats
+    const unpinned = filteredAndSortedChats.filter((chat) => !chat.isPinned);
 
-  const handleDeleteCancel = () => {
-    setDeleteModalVisible(false);
-    setChatToDelete(null);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (chatToDelete) {
-      deleteChat(chatToDelete);
-      setDeleteModalVisible(false);
-      setChatToDelete(null);
+    // Apply the current sort option
+    switch (sortOption) {
+      case "recent":
+        return unpinned.sort((a, b) => {
+          const aTime = new Date(b.updatedAt).getTime();
+          const bTime = new Date(a.updatedAt).getTime();
+          return aTime - bTime;
+        });
+      case "oldest":
+        return unpinned.sort((a, b) => {
+          const aTime = new Date(a.updatedAt).getTime();
+          const bTime = new Date(b.updatedAt).getTime();
+          return aTime - bTime;
+        });
+      case "az":
+        return unpinned.sort((a, b) => a.title.localeCompare(b.title));
+      case "za":
+        return unpinned.sort((a, b) => b.title.localeCompare(a.title));
+      default:
+        return unpinned;
     }
-  };
+  }, [filteredAndSortedChats, sortOption]);
 
-  const handleEditTitle = (
-    e: React.MouseEvent,
-    chatId: string,
-    currentTitle: string,
-  ) => {
-    e.stopPropagation();
-    setIsEditingTitle(chatId);
-    setEditedTitle(currentTitle);
-  };
-
-  const handleTitleSave = (chatId: string) => {
-    if (editedTitle.trim()) {
-      const updatedChat = chats.find((chat) => chat.id === chatId);
-      if (updatedChat) {
-        updatedChat.title = editedTitle.trim();
-
-        const updatedChats = chats.map((chat) =>
-          chat.id === chatId ? updatedChat : chat,
-        );
-
-        localStorage.setItem("chats", JSON.stringify(updatedChats));
-
-        if (activeChat?.id === chatId) {
-          setActiveChat(updatedChat);
+  const handleChatClick = useCallback(
+    (chatId: string | null, type: string, folderId?: string) => {
+      if (type === "new") {
+        startNewChat(folderId);
+        // On mobile, collapse sidebar
+        if (window.innerWidth <= 768) {
+          onToggleSidebar();
         }
-
-        setChats(updatedChats);
+      } else {
+        const selectedChat = chats.find((chat) => chat.id === chatId);
+        if (selectedChat) {
+          setActiveChat(selectedChat);
+          localStorage.setItem("PC_activeChat", JSON.stringify(selectedChat));
+          localStorage.setItem("PC_selectedModel", String(selectedChat.model));
+          // On mobile, collapse sidebar when chat is selected
+          if (window.innerWidth <= 768) {
+            onToggleSidebar();
+          }
+        }
       }
-    }
-    setIsEditingTitle(null);
-    setEditedTitle("");
-  };
+    },
+    [chats, setActiveChat, startNewChat, onToggleSidebar],
+  );
 
-  const handleInfoClick = (e: React.MouseEvent, chatId: string) => {
-    e.stopPropagation();
+  const handleStartRename = (chatId: string) => {
     const chat = chats.find((c) => c.id === chatId);
     if (chat) {
-      const chatSize = new Blob([JSON.stringify(chat)]).size / 1024;
-      const createdAtDate = chat.createdAt
-        ? new Date(chat.createdAt)
-        : new Date();
-      const formattedDate = createdAtDate
-        .toLocaleString("en-GB", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-        .replace(",", "");
-
-      setSelectedChatInfo({
-        id: chatId,
-        title: chat.title || chat.messages[0]?.content.slice(0, 30) + "...",
-        model: formatModelName(chat.model || "Not specified"),
-        messagesCount: chat.messages.length,
-        size: Number(chatSize.toFixed(2)),
-        createdAt: formattedDate,
-      });
-      setInfoModalVisible(true);
+      setIsEditingTitle(chatId);
+      setEditedTitle(chat.title);
     }
   };
 
-  const formatModelName = (name: string): string => {
-    return name
-      .split("-")
-      .map((part) => {
-        if (part.toLowerCase() === "gpt") return "GPT";
-        if (!isNaN(Number(part))) return part;
-        return part.charAt(0).toUpperCase() + part.slice(1);
-      })
-      .join(" ");
+  const handleStartDelete = (chatId: string) => {
+    setDeleteModalVisible(true);
+    setChatToDelete(chatId);
+  };
+
+  const handleInfoClick = useCallback((chatInfo: ChatInfo) => {
+    setSelectedChatInfo(chatInfo);
+    setInfoModalVisible(true);
+  }, []);
+
+  const [moveFolderModalVisible, setMoveFolderModalVisible] = useState(false);
+  const [selectedChatForMove, setSelectedChatForMove] = useState<string | null>(
+    null,
+  );
+
+  const handleMoveToFolder = useCallback((chatId: string) => {
+    setSelectedChatForMove(chatId);
+    setMoveFolderModalVisible(true);
+  }, []);
+
+  const handleMoveChatToFolder = useCallback(
+    (folderId: string) => {
+      if (selectedChatForMove) {
+        addChatToFolder(folderId, selectedChatForMove);
+      }
+    },
+    [selectedChatForMove, addChatToFolder],
+  );
+
+  const chatMenuItems = useCallback(
+    (chat: any) =>
+      getMainListMenuItems({
+        chat,
+        exportChat,
+        archiveChat,
+        togglePinChat,
+        onInfoClick: handleInfoClick,
+        onRename: handleStartRename,
+        onDeleteClick: handleStartDelete,
+        onMoveToFolder: handleMoveToFolder,
+        projectFolders,
+      }),
+    [
+      exportChat,
+      archiveChat,
+      togglePinChat,
+      handleInfoClick,
+      projectFolders,
+      handleMoveToFolder,
+    ],
+  );
+
+  const renderChatItem = useCallback(
+    (chat: any) => {
+      const isActive = activeChat?.id === chat.id;
+      const isHovered = hoveredChatId === chat.id;
+
+      return (
+        <DraggableChatItem
+          key={chat.id}
+          chat={chat}
+          isActive={isActive}
+          onSelect={() => handleChatClick(chat.id, "existing")}
+          isHovered={isHovered}
+          onMouseEnter={() => setHoveredChatId(chat.id)}
+          onMouseLeave={() => setHoveredChatId(null)}
+          menuItems={chatMenuItems(chat)}
+          isEditing={isEditingTitle === chat.id}
+          onIsEditingTitle={setIsEditingTitle}
+        />
+      );
+    },
+    [activeChat, hoveredChatId, chatMenuItems, isEditingTitle, editedTitle],
+  );
+
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      createProjectFolder(newFolderName.trim());
+      setNewFolderName("");
+      setIsCreatingFolder(false);
+    }
+  };
+
+  const handleCancelCreateFolder = () => {
+    setNewFolderName("");
+    setIsCreatingFolder(false);
   };
 
   return (
     <div className={`chat-sidebar ${isCollapsed ? "collapsed" : ""}`}>
-      <div className="chat-sidebar-header">
-        <Button
-          type="primary"
-          className="new-chat-button"
-          onClick={startNewChat}
-          icon={<PlusCircleFilled style={{ strokeWidth: 50 }} />}
-        >
-          New Chat
-        </Button>
-
-        {/* Search and Sort Controls */}
-        <div className="chat-controls">
-          <Input
-            placeholder="Search Chats..."
-            prefix={<SearchOutlined style={{ strokeWidth: 50 }} />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-          <Dropdown
-            menu={{
-              items: menuItems,
-              onClick: handleMenuClick,
-            }}
-            trigger={["click"]}
-            overlayClassName="sidebar-dropdown"
-          >
-            <Button
-              icon={<SortAscendingOutlined style={{ strokeWidth: 50 }} />}
-              className="sort-button"
-            ></Button>
-          </Dropdown>
-        </div>
-      </div>
-
-      <div className="chat-list">
-        {filteredAndSortedChats.length === 0 ? (
-          <div className="empty-chat-list">
-            {searchQuery ? "No matching chats found" : "No chats yet"}
-          </div>
-        ) : (
-          filteredAndSortedChats.map((chat) => (
-            <div
-              key={chat.id}
-              className={`chat-item ${chat.id === activeChat?.id ? "active" : ""}`}
-              onClick={() => handleChatClick(chat.id)}
-              onMouseEnter={() => setHoveredChatId(chat.id)}
-              onMouseLeave={() => setHoveredChatId(null)}
-            >
-              <div className="chat-item-content">
-                <div className="chat-header">
-                  <div
-                    className="chat-header-left"
-                    style={{ paddingBottom: "4%" }}
-                  >
-                    {chat.model && (
-                      <div className="chat-model-tag">
-                        {formatModelName(chat.model)}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="chat-header-right">
-                    {hoveredChatId === chat.id && !isEditingTitle && (
-                      <>
-                        <Button
-                          type="text"
-                          className="chat-action-button"
-                          icon={<EditOutlined />}
-                          onClick={(e) =>
-                            handleEditTitle(e, chat.id, chat.title)
-                          }
-                        />
-                        <Button
-                          type="text"
-                          className="chat-action-button"
-                          icon={<DeleteOutlined />}
-                          onClick={(e) => handleDeleteClick(e, chat.id)}
-                        />
-                        <Button
-                          type="text"
-                          className="chat-action-button"
-                          icon={<InfoCircleOutlined />}
-                          onClick={(e) => handleInfoClick(e, chat.id)}
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {isEditingTitle === chat.id ? (
-                  <Input
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                    onPressEnter={() => handleTitleSave(chat.id)}
-                    onBlur={() => handleTitleSave(chat.id)}
-                    autoFocus
-                    className="title-edit-input"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <span className="chat-title">
-                    {chat.title ||
-                      chat.messages[0]?.content.slice(0, 30) + "..."}
-                  </span>
-                )}
-
-                {chat.messages && chat.messages.length > 0 && (
-                  <div className="chat-preview">
-                    {chat.messages[chat.messages.length - 1].content.slice(
-                      0,
-                      60,
-                    )}
-                    {chat.messages[chat.messages.length - 1].content.length > 60
-                      ? "..."
-                      : ""}
-                  </div>
-                )}
-              </div>
+      <DndProvider backend={HTML5Backend}>
+        {isTemporaryMode && (
+          <div className="temp-mode-overlay">
+            <div className="overlay-content">
+              <ClockCircleOutlined className="overlay-icon" />
+              <span>Exit Temporary Chat to access/create chats</span>
             </div>
-          ))
-        )}
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        title="Delete Chat"
-        open={deleteModalVisible}
-        onCancel={handleDeleteCancel}
-        closable={false}
-        footer={[
-          <Button key="cancel" onClick={handleDeleteCancel}>
-            Cancel
-          </Button>,
-          <Button key="delete" danger onClick={handleDeleteConfirm}>
-            Delete
-          </Button>,
-        ]}
-      >
-        <p>
-          This action is permanent and cannot be undone. The chat will be
-          removed from local/cloud storage, and you will not be able to recover
-          it. <br /> <br /> Are you sure you want to delete this chat?
-        </p>
-      </Modal>
-
-      {/* Chat Info Modal */}
-      <Modal
-        title="Chat Information"
-        open={infoModalVisible}
-        onCancel={() => setInfoModalVisible(false)}
-        closable={false}
-        footer={[
-          <Button key="close" onClick={() => setInfoModalVisible(false)}>
-            Close
-          </Button>,
-        ]}
-      >
-        {selectedChatInfo && (
-          <div className="chat-info-content">
-            <p>
-              <strong>Created At</strong> {selectedChatInfo.createdAt}
-            </p>
-            <p>
-              <strong>Title</strong> {selectedChatInfo.title}
-            </p>
-            <p>
-              <strong>AI Model</strong> {selectedChatInfo.model}
-            </p>
-            <p>
-              <strong>Messages</strong> {selectedChatInfo.messagesCount}
-            </p>
-            <p>
-              <strong>Size</strong> {selectedChatInfo.size.toFixed(2)} KB
-            </p>
           </div>
         )}
-      </Modal>
+        <div className="chat-sidebar-header">
+          <Button
+            type="primary"
+            className="new-chat-button"
+            onClick={() => handleChatClick("NA", "new")}
+            icon={<PlusCircleFilled style={{ strokeWidth: 50 }} />}
+          >
+            New Chat
+          </Button>
+
+          {/* Search and Sort Controls */}
+          <div className="chat-controls">
+            <Input
+              placeholder="Search Chats..."
+              prefix={<SearchOutlined style={{ strokeWidth: 50 }} />}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: "recent",
+                    label: "Recent First",
+                    icon: <ClockCircleOutlined />,
+                  },
+                  {
+                    key: "oldest",
+                    label: "Oldest First",
+                    icon: (
+                      <ClockCircleOutlined
+                        style={{ transform: "scaleX(-1)" }}
+                      />
+                    ),
+                  },
+                  {
+                    key: "az",
+                    label: "A - Z",
+                    icon: <SortAscendingOutlined />,
+                  },
+                  {
+                    key: "za",
+                    label: "Z - A",
+                    icon: (
+                      <SortAscendingOutlined
+                        style={{ transform: "rotate(180deg)" }}
+                      />
+                    ),
+                  },
+                ],
+                onClick: handleMenuClick,
+                selectedKeys: [sortOption],
+              }}
+              trigger={["click"]}
+              placement={isMobile ? "bottomLeft" : "bottomRight"}
+              getPopupContainer={(trigger) => trigger.parentElement!}
+            >
+              <Tooltip title="Sort Chats">
+                <Button
+                  type="text"
+                  icon={<SortAscendingOutlined style={{ fontSize: "16px" }} />}
+                  className="sort-button"
+                />
+              </Tooltip>
+            </Dropdown>
+            <Tooltip title="Archived Chats">
+              <Button
+                type="text"
+                icon={<InboxOutlined style={{ fontSize: "16px" }} />}
+                onClick={() => setShowArchived(!showArchived)}
+                className="archive-button"
+                style={{ padding: "0% 10%" }}
+              >
+                {archivedChats.length > 0 && (
+                  <span className="archive-count">{archivedChats.length}</span>
+                )}
+              </Button>
+            </Tooltip>
+            <Tooltip title="Create Project Folders">
+              <Button
+                type="text"
+                icon={<FolderAddFilled style={{ fontSize: "16px" }} />}
+                onClick={() => setIsCreatingFolder(true)}
+                className="archive-button"
+              />
+            </Tooltip>
+          </div>
+        </div>
+
+        {showArchived ? (
+          <ArchivedChats searchQuery={searchQuery} sortOption={sortOption} />
+        ) : (
+          <div className="chat-list">
+            <Divider style={{ color: "#b6babe" }}>
+              <CommentOutlined /> <small>ACTIVE</small>
+            </Divider>
+            {isCreatingFolder && (
+              <div style={{ marginLeft: "6px", width: "96%" }}>
+                <Input
+                  autoFocus
+                  placeholder="Name your project"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onPressEnter={handleCreateFolder}
+                  style={{ backgroundColor: "unset !important" }}
+                  prefix={<FolderAddFilled style={{ fontSize: "20px" }} />}
+                  suffix={
+                    <div
+                      style={{ display: "flex", gap: 8, alignItems: "center" }}
+                    >
+                      {newFolderName.trim() && (
+                        <Tooltip title="Create">
+                          <CheckOutlined
+                            onClick={handleCreateFolder}
+                            style={{ cursor: "pointer" }}
+                          />
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Dismiss">
+                        <CloseOutlined
+                          onClick={handleCancelCreateFolder}
+                          style={{ cursor: "pointer" }}
+                        />
+                      </Tooltip>
+                    </div>
+                  }
+                />
+              </div>
+            )}
+
+            {filteredAndSortedChats.length === 0 &&
+            projectFolders.length === 0 ? (
+              <div className="empty-chat-list">
+                {searchQuery ? "No matching chats found" : "No chats yet"}
+              </div>
+            ) : (
+              <>
+                {/* Project Folders */}
+                {projectFolders.map((folder) => (
+                  <ProjectFolderBlock
+                    key={folder.id}
+                    folder={folder}
+                    handleChatClick={handleChatClick}
+                  />
+                ))}
+
+                {pinnedChats.length > 0 && (
+                  <div className="pinned-section">
+                    {pinnedChats.map(renderChatItem)}
+                  </div>
+                )}
+                <div className="chats-section">
+                  {unpinnedChats.map(renderChatItem)}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Move to Folder Modal */}
+        <MoveFolderModal
+          visible={moveFolderModalVisible}
+          onClose={() => setMoveFolderModalVisible(false)}
+          folders={projectFolders}
+          onMoveToFolder={handleMoveChatToFolder}
+        />
+
+        {/* Delete Modal */}
+        <Modal
+          title={
+            <div>
+              <span>
+                <DeleteOutlined /> Delete Chat
+              </span>
+            </div>
+          }
+          open={deleteModalVisible}
+          onOk={() => {
+            if (chatToDelete) {
+              deleteChat(chatToDelete);
+              message.success("Chat deleted successfully");
+            }
+            setDeleteModalVisible(false);
+            setChatToDelete(null);
+          }}
+          okText="Delete"
+          onCancel={() => {
+            setDeleteModalVisible(false);
+            setChatToDelete(null);
+          }}
+        >
+          <p>
+            This action is permanent and cannot be undone. The chat will be
+            removed from local/cloud storage, and you will not be able to
+            recover it. <br /> <br /> Are you sure you want to delete this chat?
+          </p>
+        </Modal>
+
+        <ChatInfoModal
+          visible={infoModalVisible}
+          onClose={() => setInfoModalVisible(false)}
+          chatInfo={selectedChatInfo}
+        />
+      </DndProvider>
     </div>
   );
 };

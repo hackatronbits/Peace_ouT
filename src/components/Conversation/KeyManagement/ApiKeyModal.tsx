@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { Modal, Input, Button, message as antMessage } from "antd";
+import { Modal, Input, Button, App } from "antd";
 import { useApp } from "../../../context/AppContext";
 import { KeyOutlined } from "@ant-design/icons";
 import {
+  formatModelName,
   getModelConfig,
   validateModelApiKey,
 } from "../../../config/modelConfig";
+import { featureUsageLogger } from "../../../utils/featureUsageLogger";
 import "./ApiKeyModal.css";
 
 interface ApiKeyModalProps {
@@ -24,12 +26,13 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   const { setModelApiKey } = useApp();
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+  const { message } = App.useApp();
 
   const modelConfig = getModelConfig(modelName);
 
   const handleSave = async () => {
     if (!apiKeyInput.trim()) {
-      antMessage.error("Please enter an API key");
+      message.error("Please enter an API key");
       return;
     }
 
@@ -43,23 +46,35 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
         const saved = await setModelApiKey(modelName, apiKeyInput.trim());
 
         if (saved) {
-          antMessage.success("API key validated and saved successfully");
+          message.success(
+            `API key validated successfully. You can now interact with ${formatModelName(modelName)}.`,
+          );
 
           // Trigger any additional callback (like sending pending message)
           if (onApiKeyValidated) {
             onApiKeyValidated();
           }
 
+          await featureUsageLogger({
+            featureName: "api_key_management",
+            eventType: "api_key_saved",
+            eventMetadata: {
+              model: modelConfig.name,
+              provider: modelConfig.provider,
+              keyStatus: "updated",
+            },
+          });
+
           setApiKeyInput("");
           onClose();
         } else {
-          antMessage.error("Failed to save API key");
+          message.error("Failed to save API key");
         }
       } else {
-        antMessage.error("Invalid API key. Please check and try again");
+        message.error("Invalid API key. Please check and try again");
       }
     } catch (error) {
-      antMessage.error("Error validating API key");
+      message.error("Error validating API key");
     } finally {
       setIsValidating(false);
     }

@@ -28,3 +28,18 @@ model PlatformStats {
   @@index([eventType])
   @@index([severity])
 }
+
+model FeatureUsage {
+  id             Int      @id @default(autoincrement())
+  featureName    String
+  eventType      String
+  eventMetadata  Json?
+  userIdentifier String?
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([featureName])
+  @@index([eventType])
+  @@index([occurredAt])
+}

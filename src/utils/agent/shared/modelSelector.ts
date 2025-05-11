@@ -3,6 +3,8 @@ import { logAPIError, logAPIInfo } from "../../apiLogger";
 
 interface AIAgentResponse {
   response: string | null;
+  responseTime?: Number;
+  responseTokens?: Number;
   error: string | null;
   statusCode: number;
 }
@@ -65,22 +67,18 @@ export const queryAIModel = async (
       },
     });
 
-    // Get the base URL dynamically or use environment variable
-    const baseUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-
-    // Use the full URL path
-    const response = await axios.post(`${baseUrl}/api/v1/ai/query`, {
-      model,
-      apiKey,
-      prompt,
-      messages,
-      temperature: getTemperature(taskType),
-      maxTokens: getMaxTokens(taskType),
-      chatId,
-    });
+    const response = await axios.post(
+      `${process.env.NEXT_PUBLIC_SITE_URL}/api/v1/ai/query`,
+      {
+        model,
+        apiKey,
+        prompt,
+        messages,
+        temperature: getTemperature(taskType),
+        maxTokens: getMaxTokens(taskType),
+        chatId,
+      },
+    );
 
     logAPIInfo("model_selector", "query_completed", {
       component: "modelSelector",
@@ -89,13 +87,15 @@ export const queryAIModel = async (
         model: requestedModel,
         taskType,
         responseLength: response.data?.response?.length || 0,
-        tokensUsed: response.data?.tokens_used,
+        responseTokens: response.data?.responseTokens,
         statusCode: response.status,
       },
     });
 
     return {
       response: response.data.response || null,
+      responseTime: response.data?.responseTime,
+      responseTokens: response.data?.responseTokens,
       error: null,
       statusCode: response.status,
     };
@@ -136,23 +136,28 @@ export const queryAIModel = async (
 const selectModel = (taskType: string, selectedModel: string): string => {
   // Define task-to-model priorities
   const modelPriority: Record<string, string[]> = {
-    coding: ["o1", "gpt-4o", "gpt-3.5-turbo"],
-    debugging: ["o1", "gpt-4o", "gpt-3.5-turbo"],
-    devOps: ["o1", "gpt-4o", "gpt-3.5-turbo"],
-    qa: ["gpt-3.5-turbo", "gpt-4o", "gemini-2.0-flash-exp"],
-    research: ["gpt-4o", "gemini-2.0-flash-exp", "gpt-3.5-turbo"],
-    summary: ["gpt-3.5-turbo", "gpt-4o", "gemini-2.0-flash-exp"],
-    aiMl: ["gemini-2.0-flash-exp", "gpt-4o", "claude-3.0"],
-    concept: ["gemini-2.0-flash-exp", "gpt-4o", "gpt-3.5-turbo"],
-    design: ["gemini-2.0-flash-exp", "gpt-4o", "claude-2.0"],
-    security: ["chatgpt-4o-latest", "gpt-4o-mini", "gpt-3.5-turbo"],
-    productivity: ["chatgpt-4o-latest", "gpt-4o-mini", "gpt-3.5-turbo"],
-    writing: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
-    largeContext: ["gpt-3.5-turbo-16k", "gpt-4o", "gemini-1.5-pro"],
+    coding: [
+      "o1",
+      "gpt-4o",
+      "gpt-3.5-turbo-0125",
+      "claude-3-5-sonnet-20241022",
+    ],
+    debugging: ["o1", "gpt-4o", "gpt-3.5-turbo-0125"],
+    devOps: ["o1", "gpt-4o", "gpt-3.5-turbo-0125"],
+    qa: ["gpt-3.5-turbo-0125", "gpt-4o", "gemini-2.0-flash-exp"],
+    research: ["gpt-4o", "gemini-2.0-flash-exp", "gpt-3.5-turbo-0125"],
+    summary: ["gpt-3.5-turbo-0125", "gpt-4o", "gemini-2.0-flash-exp"],
+    aiMl: ["gemini-2.0-flash-exp", "gpt-4o", "claude-3-5-sonnet-20241022"],
+    concept: ["gemini-2.0-flash-exp", "gpt-4o", "gpt-3.5-turbo-0125"],
+    design: ["gemini-2.0-flash-exp", "gpt-4o", "claude-3-5-sonnet-20241022"],
+    security: ["chatgpt-4o-latest", "gpt-4o-mini", "gpt-3.5-turbo-0125"],
+    productivity: ["chatgpt-4o-latest", "gpt-4o-mini", "gpt-3.5-turbo-0125"],
+    writing: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo-0125"],
+    largeContext: ["gpt-3.5-turbo-0125", "gpt-4o", "gemini-1.5-pro"],
   };
 
   // Get prioritized models for the given task type
-  const prioritizedModels = modelPriority[taskType] || ["gpt-3.5-turbo"]; // Default fallback
+  const prioritizedModels = modelPriority[taskType] || ["gpt-3.5-turbo-0125"]; // Default fallback
 
   // Include the user-selected model if provided
   if (selectedModel) {

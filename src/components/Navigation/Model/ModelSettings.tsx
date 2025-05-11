@@ -24,15 +24,18 @@ import {
   KeyOutlined,
   ExportOutlined,
   InfoCircleTwoTone,
+  EditOutlined,
 } from "@ant-design/icons";
 import { useApp } from "../../../context/AppContext";
 import {
   ModelSettings as IModelSettings,
   MODELS,
   DEFAULT_MODEL_SETTINGS,
+  ModelProvider,
 } from "../../../config/modelConfig";
 import { validateModelApiKey } from "../../../config/modelConfig";
 import { logInfo, logError } from "../../../utils/logger";
+import { featureUsageLogger } from "../../../utils/featureUsageLogger";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -41,8 +44,8 @@ export const metadata: Metadata = {
 };
 
 const LOCAL_STORAGE_KEYS = {
-  MODEL_SETTINGS: "modelSettings",
-  API_KEYS: "modelApiKeys",
+  MODEL_SETTINGS: "PC_modelSettings",
+  API_KEYS: "PC_modelApiKeys",
 };
 
 const { Title, Text, Paragraph } = Typography;
@@ -116,6 +119,16 @@ export default function ModelSettings() {
     type: "success" | "error" | "info";
   } | null>(null);
   const [isEditingKey, setIsEditingKey] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Initialize default settings in localStorage if not present
   useEffect(() => {
@@ -197,7 +210,10 @@ export default function ModelSettings() {
     }
   }, [selectedModel]);
 
-  const handleSettingChange = (setting: keyof IModelSettings, value: any) => {
+  const handleSettingChange = async (
+    setting: keyof IModelSettings,
+    value: any,
+  ) => {
     try {
       const newSettings = { ...currentSettings, [setting]: value };
       setCurrentSettings(newSettings);
@@ -213,6 +229,16 @@ export default function ModelSettings() {
         LOCAL_STORAGE_KEYS.MODEL_SETTINGS,
         JSON.stringify(allSettings),
       );
+
+      await featureUsageLogger({
+        featureName: "model_settings",
+        eventType: "setting_updated",
+        eventMetadata: {
+          setting,
+          value,
+          previousValue: currentSettings[setting],
+        },
+      });
 
       logInfo("model", "settings_changed", {
         component: "ModelSettings",
@@ -266,6 +292,14 @@ export default function ModelSettings() {
           message: "API key is valid and has been saved",
           type: "success",
         });
+        await featureUsageLogger({
+          featureName: "model_settings",
+          eventType: "api_key_updated",
+          eventMetadata: {
+            model,
+            keyUpdated: true,
+          },
+        });
         setIsEditingKey(false);
       } else {
         logInfo("model", "api_key_validation", {
@@ -275,6 +309,14 @@ export default function ModelSettings() {
         setValidationStatus({
           message: "Invalid API key. Please check and try again",
           type: "error",
+        });
+        await featureUsageLogger({
+          featureName: "model_settings",
+          eventType: "api_key_updated_failed",
+          eventMetadata: {
+            model,
+            keyUpdated: false,
+          },
         });
       }
     } catch (error) {
@@ -363,134 +405,22 @@ export default function ModelSettings() {
             }}
           />
         </div>
-        <Slider
-          value={value}
-          min={setting.min}
-          max={setting.max}
-          step={setting.step}
-          onChange={(val) => handleSettingChange(key, val)}
-        />
+        {(MODELS[selectedModel].provider === ModelProvider.Google ||
+          MODELS[selectedModel].provider === ModelProvider.Anthropic ||
+          MODELS[selectedModel].provider === ModelProvider.Ollama) &&
+        (setting.title === "Frequency Penalty" ||
+          setting.title === "Presence Penalty") ? (
+          <Text>Model doesn&apos;t support this parameter</Text>
+        ) : (
+          <Slider
+            value={value}
+            min={setting.min}
+            max={setting.max}
+            step={setting.step}
+            onChange={(val) => handleSettingChange(key, val)}
+          />
+        )}
       </div>
-    );
-  };
-
-  const renderApiKeySection = () => {
-    if (!selectedModel) return null;
-
-    const hasStoredKey = apiKeys[selectedModel];
-    const isEditing = isEditingKey || !hasStoredKey;
-
-    return (
-      <Card className="settings-card">
-        <div className="card-header">
-          <Title level={4}>
-            <KeyOutlined className="mr-2" /> Key Management
-          </Title>
-        </div>
-        <div className="card-content">
-          {MODELS[selectedModel].authMethod !== "none" ? (
-            <>
-              <div className="setting-group">
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <Text strong>API Key</Text>
-                  {isEditing ? (
-                    <Input.Password
-                      style={{ width: "70%", background: "#141414 !important" }}
-                      placeholder="Enter your API key"
-                      value={apiKeys[selectedModel] || ""}
-                      onChange={(e) =>
-                        handleApiKeyChange(selectedModel, e.target.value)
-                      }
-                    />
-                  ) : (
-                    <Alert
-                      className="key-management"
-                      message="API key is set and validated"
-                      description={
-                        <Button
-                          type="link"
-                          onClick={() => setIsEditingKey(true)}
-                        >
-                          Update API key
-                        </Button>
-                      }
-                      type="success"
-                      showIcon
-                    />
-                  )}
-                </Space>
-              </div>
-              {isEditing && (
-                <div className="api-key-actions">
-                  <Button
-                    style={{ marginRight: "2%" }}
-                    type="primary"
-                    onClick={() => validateApiKey(selectedModel)}
-                    loading={isValidating}
-                  >
-                    {hasStoredKey
-                      ? "Update & Validate Key"
-                      : "Validate & Save Key"}
-                  </Button>
-                  {isEditingKey && (
-                    <Button
-                      style={{ marginRight: "2%" }}
-                      onClick={() => {
-                        setIsEditingKey(false);
-                        // Restore the previous key if exists
-                        const storedKeys = localStorage.getItem(
-                          LOCAL_STORAGE_KEYS.API_KEYS,
-                        );
-                        if (storedKeys) {
-                          try {
-                            const parsedKeys = JSON.parse(storedKeys);
-                            setApiKeys(parsedKeys);
-                          } catch (error) {
-                            console.error(
-                              "Error parsing stored API keys:",
-                              error,
-                            );
-                          }
-                        }
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  )}
-                  {MODELS[selectedModel].keyAcquisitionLink && (
-                    <Button
-                      type="link"
-                      icon={<ExportOutlined />}
-                      onClick={() =>
-                        window.open(
-                          MODELS[selectedModel].keyAcquisitionLink,
-                          "_blank",
-                        )
-                      }
-                    >
-                      Get API Key
-                    </Button>
-                  )}
-                </div>
-              )}
-              {validationStatus && (
-                <Alert
-                  message={validationStatus.message}
-                  type={validationStatus.type}
-                  showIcon
-                  className="mt-4"
-                />
-              )}
-            </>
-          ) : (
-            <Alert
-              message="No API key required for this model"
-              type="info"
-              showIcon
-            />
-          )}
-        </div>
-      </Card>
     );
   };
 
@@ -498,7 +428,7 @@ export default function ModelSettings() {
     <div className="settings-container">
       <div className="settings-header">
         <Space align="center" size={16}>
-          <SettingOutlined style={{ padding: "4%" }} />
+          <SettingOutlined style={{ fontSize: "20px" }} />
           <div>
             <Title level={2}>Model Settings</Title>
             <Text type="secondary">
@@ -525,7 +455,6 @@ export default function ModelSettings() {
             </Title>
           </div>
           <div className="card-content">
-            {/* {currentSettings.maxTokens} */}
             {Object.entries(currentSettings)
               .filter(([key, value]) => typeof value === "number")
               .map(([key, value]) =>
@@ -545,23 +474,10 @@ export default function ModelSettings() {
           </div>
           <div className="card-content">
             <div className="setting-group">
-              <Text strong>Response Format</Text>
-              <Select
-                style={{ float: "right" }}
-                value={currentSettings.responseFormat}
-                onChange={(value) =>
-                  handleSettingChange("responseFormat", value)
-                }
+              <Space
+                align={isMobile ? "start" : "center"}
+                direction={isMobile ? "vertical" : "horizontal"}
               >
-                <Option value="text">Plain Text</Option>
-                <Option value="markdown">Markdown</Option>
-                <Option value="json">JSON</Option>
-              </Select>
-              <br />
-              <br />
-            </div>
-            <div className="setting-group">
-              <Space>
                 <Text strong>Custom Instructions</Text>
                 <Tooltip title="These instructions will be included with every prompt to guide the model's behavior">
                   <InfoCircleTwoTone className="info-icon" />
@@ -569,20 +485,95 @@ export default function ModelSettings() {
               </Space>
               <br />
               <br />
-              <TextArea
-                className="custom-instructions"
-                value={currentSettings.customInstructions}
-                onChange={(e) =>
-                  handleSettingChange("customInstructions", e.target.value)
-                }
-                placeholder="Enter any specific instructions for the model..."
-                rows={4}
-              />
+              {MODELS[selectedModel].name.includes("Gemini") === true ||
+              MODELS[selectedModel].name.includes("DeepSeek") === true ? (
+                <Text>Model doesn&apos;t support this parameter</Text>
+              ) : (
+                <TextArea
+                  className="custom-instructions"
+                  value={currentSettings.customInstructions}
+                  onChange={(e) =>
+                    handleSettingChange("customInstructions", e.target.value)
+                  }
+                  placeholder="Enter any specific instructions for the model..."
+                  rows={4}
+                />
+              )}
             </div>
           </div>
         </Card>
 
-        {selectedModel && renderApiKeySection()}
+        {selectedModel && (
+          <Card className="settings-card">
+            <div className="card-header">
+              <Title level={4}>
+                <KeyOutlined className="mr-2" /> API Key Management
+              </Title>
+            </div>
+            <div className="card-content">
+              <Alert
+                className="key-management"
+                message={
+                  <Space
+                    align={isMobile ? "start" : "center"}
+                    direction={isMobile ? "vertical" : "horizontal"}
+                  >
+                    <Text>
+                      {isEditingKey
+                        ? "Add API key for "
+                        : "API key status for "}
+                      <Text strong>{MODELS[selectedModel].name}</Text>
+                    </Text>
+                    {!isEditingKey && (
+                      <Tag color={apiKeys[selectedModel] ? "#108ee9" : "#f50"}>
+                        {apiKeys[selectedModel]
+                          ? "Configured"
+                          : "Not Configured"}
+                      </Tag>
+                    )}
+                  </Space>
+                }
+                type="info"
+                action={
+                  <Space direction={isMobile ? "vertical" : "horizontal"}>
+                    {isEditingKey ? (
+                      <>
+                        <Button
+                          type="primary"
+                          onClick={() => validateApiKey(selectedModel)}
+                          loading={isValidating}
+                        >
+                          Save Key
+                        </Button>
+                        <Button onClick={() => setIsEditingKey(false)}>
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        type="link"
+                        onClick={() => setIsEditingKey(true)}
+                        icon={<EditOutlined />}
+                      >
+                        {apiKeys[selectedModel] ? "Update Key" : "Add Key"}
+                      </Button>
+                    )}
+                  </Space>
+                }
+              />
+              {isEditingKey && (
+                <Input.Password
+                  placeholder="Enter your API key"
+                  value={apiKeys[selectedModel] || ""}
+                  onChange={(e) =>
+                    handleApiKeyChange(selectedModel, e.target.value)
+                  }
+                  style={{ marginTop: "16px" }}
+                />
+              )}
+            </div>
+          </Card>
+        )}
 
         {selectedModel && (
           <Card className="settings-card">
@@ -594,7 +585,9 @@ export default function ModelSettings() {
             <div className="card-content">
               <div className="setting-group">
                 <Text strong>Description</Text>
-                <Text className="mt-2 block" style={{ float: "right" }}>
+                <br />
+                <br />
+                <Text className="mt-2 block">
                   {MODELS[selectedModel].description}
                 </Text>
               </div>
@@ -602,10 +595,15 @@ export default function ModelSettings() {
                 <Text strong>Features</Text>
                 <br />
                 <br />
-                <div>
+                <div className={isMobile ? "feature-tags-mobile" : ""}>
                   {MODELS[selectedModel].features?.maxTokens && (
                     <Tag color="blue" className="feature-tags">
                       Max Tokens: {MODELS[selectedModel].features.maxTokens}
+                    </Tag>
+                  )}
+                  {MODELS[selectedModel].features?.supportsFineTuning && (
+                    <Tag color="red" className="feature-tags">
+                      Supports Fine Tuning
                     </Tag>
                   )}
                   {MODELS[selectedModel].features?.supportsStreaming && (
@@ -625,7 +623,7 @@ export default function ModelSettings() {
                   <Text strong>Pricing</Text>
                   <br />
                   <br />
-                  <div>
+                  <div className={isMobile ? "feature-tags-mobile" : ""}>
                     <Tag color="orange" className="feature-tags">
                       Input: ${MODELS[selectedModel].pricing.inputTokenPrice}{" "}
                       per 1K tokens

@@ -1,5 +1,5 @@
-import { message } from "antd";
 import { logError, logInfo, logWarning } from "./logger";
+import { featureUsageLogger } from "./featureUsageLogger";
 
 interface SpeechRecognitionErrorEvent extends Event {
   error:
@@ -55,6 +55,8 @@ declare global {
 
 let recognitionInstance: any = null;
 let isListening = false;
+let manualStop = false;
+let currentTranscript = ""; // Add this to store current transcript
 
 function getBrowserInfo() {
   const userAgent = navigator.userAgent;
@@ -104,8 +106,6 @@ export function initSpeechToText({
       status: "failed",
     });
 
-    message.error(errorMsg, 2);
-
     return {
       startListening: () => {},
       stopListening: () => {},
@@ -139,10 +139,9 @@ export function initSpeechToText({
   const MAX_RETRIES = 2;
   const RETRY_DELAY = 1000;
 
-  recognitionInstance.onstart = function (this: any) {
+  recognitionInstance.onstart = async function () {
     isListening = true;
     onStart?.();
-    message.info("Listening...");
 
     logInfo("speech_to_text", "start_listening", {
       component: "speech_to_text",
@@ -161,10 +160,17 @@ export function initSpeechToText({
         interimResults: recognitionInstance.interimResults,
       },
     });
+
+    await featureUsageLogger({
+      featureName: "speech_to_text",
+      eventType: "recognition_started",
+      eventMetadata: {
+        timestamp: new Date().toISOString(),
+      },
+    });
   };
 
-  recognitionInstance.onerror = function (
-    this: any,
+  recognitionInstance.onerror = async function (
     event: SpeechRecognitionErrorEvent,
   ) {
     logError("speech_to_text", "recognition_error", new Error(event.error), {
@@ -216,10 +222,19 @@ export function initSpeechToText({
     }
 
     if (shouldRetry) {
-      message.info(errorMessage);
       setTimeout(() => {
         try {
           recognitionInstance.start();
+
+          logInfo("speech_to_text", "retry_start", {
+            component: "speech_to_text",
+            action: "retry_start",
+            status: "success",
+            metadata: {
+              retryAttempt: retryCount,
+              maxRetries: MAX_RETRIES,
+            },
+          });
         } catch (e) {
           onError?.("Failed to restart speech recognition");
           isListening = false;
@@ -227,17 +242,43 @@ export function initSpeechToText({
       }, RETRY_DELAY);
     } else {
       onError?.(errorMessage);
-      message.error(errorMessage);
       isListening = false;
     }
   };
 
-  recognitionInstance.onend = function (this: any) {
-    if (isListening && !isEdge) {
-      // Only auto-restart for non-Edge browsers
+  recognitionInstance.onresult = function (event: SpeechRecognitionEvent) {
+    if (event.results.length > 0) {
+      const result = event.results[event.results.length - 1];
+      if (result.isFinal) {
+        const transcript = result[0].transcript;
+        if (transcript.trim()) {
+          currentTranscript = transcript.trim();
+          logInfo("speech_to_text", "transcription_received", {
+            component: "speech_to_text",
+            action: "transcription",
+            status: "success",
+            metadata: {
+              confidence: result[0].confidence,
+              length: transcript.trim().length,
+            },
+          });
+
+          if (!manualStop) {
+            onTranscript(currentTranscript);
+          }
+
+          if (isEdge) {
+            recognitionInstance.stop();
+          }
+        }
+      }
+    }
+  };
+
+  recognitionInstance.onend = function () {
+    if (isListening && !isEdge && !manualStop) {
       try {
         recognitionInstance.start();
-
         logInfo("speech_to_text", "auto_restart", {
           component: "speech_to_text",
           action: "auto_restart",
@@ -249,12 +290,16 @@ export function initSpeechToText({
           action: "auto_restart",
           status: "failed",
         });
-
         isListening = false;
         onEnd?.();
       }
     } else {
+      if (manualStop && currentTranscript) {
+        onTranscript(currentTranscript);
+      }
+
       isListening = false;
+      currentTranscript = "";
       onEnd?.();
 
       logInfo("speech_to_text", "recognition_ended", {
@@ -263,46 +308,28 @@ export function initSpeechToText({
         status: "ended",
         metadata: {
           wasListening: isListening,
+          manualStop,
+          hadTranscript: !!currentTranscript,
         },
       });
-    }
-  };
 
-  recognitionInstance.onresult = function (
-    this: any,
-    event: SpeechRecognitionEvent,
-  ) {
-    if (event.results.length > 0) {
-      const result = event.results[event.results.length - 1];
-      if (result.isFinal) {
-        const transcript = result[0].transcript;
-        if (transcript.trim()) {
-          logInfo("speech_to_text", "transcription_received", {
-            component: "speech_to_text",
-            action: "transcription",
-            status: "success",
-            metadata: {
-              confidence: result[0].confidence,
-              length: transcript.trim().length,
-            },
-          });
-
-          onTranscript(transcript.trim());
-
-          // For Edge, stop after each result
-          if (isEdge) {
-            recognitionInstance.stop();
-          }
-        }
-      }
+      manualStop = false;
     }
   };
 
   return {
     startListening: () => {
-      if (recognitionInstance && !isListening) {
-        try {
-          retryCount = 0; // Reset retry counter
+      if (!recognitionInstance) {
+        return;
+      }
+
+      try {
+        if (!isListening) {
+          manualStop = false;
+          currentTranscript = "";
+          retryCount = 0;
+
+          // Start recognition before showing UI feedback
           recognitionInstance.start();
 
           logInfo("speech_to_text", "manual_start", {
@@ -310,25 +337,28 @@ export function initSpeechToText({
             action: "manual_start",
             status: "success",
           });
-        } catch (error) {
-          logError("speech_to_text", "start_failed", error as Error, {
-            component: "speech_to_text",
-            action: "manual_start",
-            status: "failed",
-          });
-
-          message.error("Failed to start speech recognition");
         }
+      } catch (error) {
+        logError("speech_to_text", "start_failed", error as Error, {
+          component: "speech_to_text",
+          action: "manual_start",
+          status: "failed",
+        });
       }
     },
     stopListening: () => {
       if (recognitionInstance && isListening) {
+        manualStop = true;
         recognitionInstance.stop();
 
         logInfo("speech_to_text", "manual_stop", {
           component: "speech_to_text",
           action: "manual_stop",
           status: "success",
+          metadata: {
+            manualStop: true,
+            hasTranscript: !!currentTranscript,
+          },
         });
       }
     },

@@ -1,5 +1,5 @@
 import { ModelProvider } from "../config/modelConfig";
-import { logAPIInfo, logAPIError, logAPIWarning } from "./apiLogger";
+import { featureUsageLogger } from "./featureUsageLogger";
 
 interface OpenAIImageParams {
   imageModel: string;
@@ -22,17 +22,18 @@ interface GeminiImageParams {
   person_generation?: string;
 }
 
-export const formatImageGenerationRequest = (
+export const formatImageGenerationRequest = async (
   provider: ModelProvider,
   prompt: string,
   modelConfig: any,
 ) => {
-  logAPIInfo("image_generation", "format_request", {
-    component: "image_generation",
-    action: "format_request_start",
-    metadata: {
+  await featureUsageLogger({
+    featureName: "image_generation_prep",
+    eventType: "prep_started",
+    eventMetadata: {
+      prompt,
       provider,
-      prompt_length: prompt.length,
+      timestamp: new Date().toISOString(),
     },
   });
 
@@ -48,14 +49,6 @@ export const formatImageGenerationRequest = (
           style: "vivid",
           response_format: "url",
         };
-        logAPIInfo("image_generation", "format_request", {
-          component: "image_generation",
-          action: "openai_params_formatted",
-          metadata: {
-            model: openAIParams.imageModel,
-            size: openAIParams.size,
-          },
-        });
         return openAIParams;
 
       case ModelProvider.Google:
@@ -67,36 +60,14 @@ export const formatImageGenerationRequest = (
           safety_filter_level: "BLOCK_MEDIUM_AND_ABOVE",
           person_generation: "ALLOW_ADULT",
         };
-        logAPIInfo("image_generation", "format_request", {
-          component: "image_generation",
-          action: "gemini_params_formatted",
-          metadata: {
-            imageModel: geminiParams.imageModel,
-            aspect_ratio: geminiParams.aspect_ratio,
-          },
-        });
         return geminiParams;
 
       default:
         const error = new Error(`Unsupported provider: ${provider}`);
-        logAPIError("image_generation", "format_request", error, {
-          component: "image_generation",
-          action: "unsupported_provider",
-          metadata: {
-            provider,
-          },
-        });
         throw error;
     }
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logAPIError("image_generation", "format_request", error, {
-      component: "image_generation",
-      action: "format_request_error",
-      metadata: {
-        provider,
-      },
-    });
     throw error;
   }
 };
@@ -105,14 +76,6 @@ export const extractImageUrlFromResponse = (
   provider: ModelProvider,
   response: any,
 ): string => {
-  logAPIInfo("image_generation", "extract_url", {
-    component: "image_generation",
-    action: "extract_url_start",
-    metadata: {
-      provider,
-    },
-  });
-
   try {
     let url: string;
     switch (provider) {
@@ -124,45 +87,11 @@ export const extractImageUrlFromResponse = (
         break;
       default:
         const error = new Error(`Unsupported provider: ${provider}`);
-        logAPIError("image_generation", "extract_url", error, {
-          component: "image_generation",
-          action: "unsupported_provider",
-          metadata: {
-            provider,
-          },
-        });
         throw error;
     }
-
-    if (!url) {
-      logAPIWarning("image_generation", "extract_url", {
-        component: "image_generation",
-        action: "empty_url",
-        metadata: {
-          provider,
-        },
-      });
-    }
-
-    logAPIInfo("image_generation", "extract_url", {
-      component: "image_generation",
-      action: "url_extracted",
-      metadata: {
-        provider,
-        url_length: url.length,
-      },
-    });
-
     return url;
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logAPIError("image_generation", "extract_url", error, {
-      component: "image_generation",
-      action: "extract_url_error",
-      metadata: {
-        provider,
-      },
-    });
     throw error;
   }
 };

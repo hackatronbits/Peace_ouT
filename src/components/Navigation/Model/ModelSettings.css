@@ -78,7 +78,7 @@
   top: 0;
   z-index: 10;
   background-color: var(--bg-primary);
-  padding: 24px 32px;
+  padding: 32px 32px 15px 32px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -284,10 +284,42 @@ span.ant-typography {
 /* Ant Design Component Overrides */
 .ant-select:not(.ant-select-customize-input) .ant-select-selector {
   background-color: var(--input-bg) !important;
-  border-color: var(--border-color) !important;
+  border: unset !important;
+  border-color: unset !important;
   border-radius: 8px !important;
   height: 40px !important;
   padding: 4px 12px !important;
+}
+
+.ant-select:not(.ant-select-customize-input) .ant-select-selector:hover {
+  background-color: #e2e8f0 !important;
+  border: unset !important;
+  border-color: unset !important;
+}
+
+.dark .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  background-color: unset !important;
+}
+
+.dark .ant-select:not(.ant-select-customize-input) .ant-select-selector:hover {
+  background-color: #2d3748 !important;
+}
+
+/* Remove focus border from Select */
+.ant-select:not(.ant-select-disabled):focus .ant-select-selector,
+.ant-select-focused:not(.ant-select-disabled) .ant-select-selector,
+.ant-select:not(.ant-select-disabled).ant-select-open .ant-select-selector {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.ant-select .ant-select-selector {
+  transition: none !important;
+}
+
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+  border-color: transparent !important;
 }
 
 .ant-select-selection-item {
@@ -300,18 +332,39 @@ span.ant-typography {
   border-color: var(--border-color) !important;
 }
 
+.dark .ant-select-dropdown {
+  background-color: #1e293b !important;
+}
+
 .ant-select-item {
   color: var(--text-primary) !important;
+}
+
+.dark .ant-select-item {
+  background: #1f293a;
+  color: #e2e8f0 !important;
+}
+
+.dark .ant-select-item:hover {
+  color: #62a5f7 !important;
 }
 
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
   background-color: var(--hover-bg) !important;
 }
 
+.dark .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: rgba(95, 93, 93, 0.5) !important;
+  color: #62a5f7 !important;
+}
+
 .ant-input-password {
   background-color: var(--input-bg) !important;
   border-color: var(--border-color) !important;
   border-radius: 8px !important;
+}
+.dark .ant-input-password {
+  background-color: #001529 !important;
 }
 
 .ant-input-password input {
@@ -371,7 +424,8 @@ span.ant-typography {
 }
 
 .ant-tooltip-inner {
-  border: 1px solid var(--border-color);
+  background-color: #e6e7e8 !important;
+  color: #000000 !important;
   border-radius: 8px;
   padding: 8px 12px;
 }
@@ -444,7 +498,7 @@ span.ant-typography {
 }
 
 .dark .settings-card .ant-select .ant-select-selector {
-  background-color: #141414 !important;
+  background-color: #0f172a !important;
   border: 1px solid #303030 !important;
   color: #ffffff !important;
 }
@@ -469,18 +523,140 @@ span.ant-typography {
   background-color: #1e293b !important;
 }
 
-/* Responsive Adjustments */
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
+  .main-content {
+    transform: unset !important;
+    margin-left: unset !important;
+  }
+
   .settings-header,
   .settings-grid {
     padding: 16px;
   }
 
+  .settings-header h2 {
+    font-size: 20px !important;
+  }
+
+  .settings-card.ant-card {
+    margin-bottom: 16px;
+  }
+
   .card-header {
-    padding: 12px 16px;
+    padding: 16px;
   }
 
   .card-content {
     padding: 16px;
+  }
+
+  /* Make form elements more touch-friendly */
+  .ant-select,
+  .ant-input,
+  .ant-input-textarea {
+    width: 100% !important;
+    height: 40px !important;
+  }
+
+  .ant-input-textarea {
+    height: auto !important;
+  }
+
+  .ant-select-selector {
+    height: 40px !important;
+    padding: 4px 12px !important;
+  }
+
+  .ant-select-selection-item {
+    line-height: 32px !important;
+  }
+
+  /* Improve slider touch targets */
+  .ant-slider-handle {
+    width: 24px !important;
+    height: 24px !important;
+    margin-top: -10px !important;
+  }
+
+  .ant-slider-rail,
+  .ant-slider-track {
+    height: 6px !important;
+  }
+
+  /* Adjust spacing for mobile */
+  .setting-group {
+    margin-bottom: 24px !important;
+  }
+
+  .setting-group:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  /* Make tags wrap properly */
+  .feature-tags {
+    margin: 4px !important;
+  }
+
+  /* Improve alert and message readability */
+  .ant-alert {
+    margin: 8px 0 !important;
+    padding: 12px !important;
+  }
+
+  .ant-alert-message {
+    font-size: 14px !important;
+  }
+
+  /* Adjust button sizes for better touch targets */
+  .ant-btn {
+    height: 40px !important;
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+  }
+
+  /* Improve tooltip readability */
+  .ant-tooltip {
+    max-width: 280px !important;
+  }
+
+  /* Better spacing for info icons */
+  .info-icon {
+    margin-left: 8px !important;
+    font-size: 16px !important;
+  }
+
+  /* Adjust text sizes for better readability */
+  .ant-typography {
+    font-size: 14px !important;
+  }
+
+  h4.ant-typography {
+    font-size: 16px !important;
+  }
+
+  /* Make custom instructions textarea more usable */
+  .custom-instructions {
+    min-height: 100px !important;
+  }
+
+  /* Improve spacing between elements */
+  .ant-space {
+    gap: 12px !important;
+  }
+
+  /* Better form layout */
+  .ant-form-item {
+    margin-bottom: 16px !important;
+  }
+
+  .ant-form-item-label {
+    padding-bottom: 4px !important;
+  }
+
+  /* Make modal content scrollable */
+  .settings-container {
+    height: calc(100vh - 56px);
+    overflow-y: auto;
   }
 }

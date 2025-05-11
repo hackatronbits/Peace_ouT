@@ -1,0 +1,816 @@
+/* Base styles with enhanced animations */
+.about-container {
+  overflow-x: hidden;
+  position: relative;
+  color: #1a1a1a;
+}
+
+main {
+  position: relative;
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 5% auto;
+  padding: 0 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Animated background gradient */
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Hero Section with Dynamic Elements */
+.hero-section {
+  position: relative;
+  padding: 120px 24px;
+  background: linear-gradient(-45deg, #1a1a2e, #16213e, #1e3a8a, #312e81);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  overflow: hidden;
+  text-align: center;
+}
+
+.hero-section h1 {
+  color: white !important;
+  font-size: 3.5rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 1.5rem !important;
+  line-height: 1.2 !important;
+}
+
+.hero-text {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 1.25rem !important;
+  max-width: 700px;
+  margin: 0 auto !important;
+  opacity: 0;
+  animation: fadeInUp 1s forwards 0.5s;
+}
+
+/* Animated mesh background */
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+      circle at 100% 50%,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 0% 50%,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%
+    );
+  animation: meshMove 20s ease-in-out infinite alternate;
+}
+
+@keyframes meshMove {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-20px) scale(1.1);
+  }
+}
+
+/* Floating particles */
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+}
+
+.particle:nth-child(1) {
+  animation: particleFloat 20s infinite;
+  top: 10%;
+  left: 10%;
+}
+.particle:nth-child(2) {
+  animation: particleFloat 25s infinite;
+  top: 20%;
+  left: 50%;
+}
+.particle:nth-child(3) {
+  animation: particleFloat 30s infinite;
+  top: 30%;
+  left: 30%;
+}
+.particle:nth-child(4) {
+  animation: particleFloat 22s infinite;
+  top: 40%;
+  left: 70%;
+}
+.particle:nth-child(5) {
+  animation: particleFloat 28s infinite;
+  top: 50%;
+  left: 20%;
+}
+.particle:nth-child(6) {
+  animation: particleFloat 18s infinite;
+  top: 60%;
+  left: 60%;
+}
+
+@keyframes particleFloat {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(100px, -50px) rotate(90deg);
+  }
+  50% {
+    transform: translate(50px, 100px) rotate(180deg);
+  }
+  75% {
+    transform: translate(-50px, 50px) rotate(270deg);
+  }
+}
+
+/* Glowing text effect */
+.hero-text::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 100px;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, transparent);
+  animation: glowLine 2s ease-in-out infinite;
+}
+
+@keyframes glowLine {
+  0%,
+  100% {
+    width: 100px;
+    opacity: 1;
+  }
+  50% {
+    width: 200px;
+    opacity: 0.5;
+  }
+}
+
+/* Mission Section with Floating Cards */
+.mission-section {
+  padding: 80px 0;
+  background: #ffffff;
+  position: relative;
+  overflow: hidden;
+  min-height: 600px;
+}
+
+.mission-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.mission-text {
+  max-width: 600px;
+  margin-bottom: 100px;
+}
+
+.mission-text h2 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 24px;
+}
+
+.mission-text p {
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: #4a5568;
+}
+
+.mission-cards {
+  position: relative;
+  height: 300px;
+}
+
+.mission-card {
+  position: absolute;
+  width: 280px;
+  padding: 32px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+/* Unique positioning and animations for each card */
+.mission-card:nth-child(1) {
+  left: 0;
+  top: -50px;
+  transform: rotate(-5deg);
+  animation: float1 6s ease-in-out infinite;
+}
+
+.mission-card:nth-child(2) {
+  left: 50%;
+  transform: translateX(-50%) rotate(3deg);
+  animation: float2 7s ease-in-out infinite;
+}
+
+.mission-card:nth-child(3) {
+  right: 0;
+  top: 50px;
+  transform: rotate(5deg);
+  animation: float3 8s ease-in-out infinite;
+}
+
+@keyframes float1 {
+  0%,
+  100% {
+    transform: rotate(-5deg) translate(0, 0);
+  }
+  50% {
+    transform: rotate(-5deg) translate(0, -20px);
+  }
+}
+
+@keyframes float2 {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(3deg) translate(0, 0);
+  }
+  50% {
+    transform: translateX(-50%) rotate(3deg) translate(0, -30px);
+  }
+}
+
+@keyframes float3 {
+  0%,
+  100% {
+    transform: rotate(5deg) translate(0, 0);
+  }
+  50% {
+    transform: rotate(5deg) translate(0, -25px);
+  }
+}
+
+.mission-card:hover {
+  transform: translateY(-10px) rotate(0deg) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.card-icon {
+  width: 60px;
+  height: 60px;
+  background: #eef2ff;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.card-icon svg {
+  font-size: 28px;
+  color: #6366f1;
+}
+
+.mission-card h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.mission-card p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #6b7280;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin: 20% auto;
+  }
+
+  .mission-section {
+    padding: 60px 0;
+    min-height: auto;
+  }
+
+  .mission-text {
+    margin-bottom: 60px;
+  }
+
+  .mission-text h2 {
+    font-size: 2.25rem;
+  }
+
+  .mission-cards {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .mission-card {
+    position: relative;
+    width: 100%;
+    transform: none !important;
+    animation: none !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+  }
+}
+
+/* Achievement Stats */
+.achievement-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 60px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  flex: 1;
+  min-width: 200px;
+  text-align: center;
+  padding: 32px 20px;
+  background: #f8fafc;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.stat-number {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #6366f1;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 1rem;
+  color: #4a5568;
+  margin: 0;
+}
+
+/* Features Grid */
+.features-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin-top: 80px;
+}
+
+.feature-card {
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  background: #eef2ff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.feature-icon svg {
+  width: 24px;
+  height: 24px;
+  color: #6366f1;
+}
+
+.feature-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 12px 0;
+}
+
+.feature-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #6b7280;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    flex-direction: column;
+  }
+
+  .hero-section,
+  .mission-section,
+  .values-section,
+  .tech-section,
+  .vision-section {
+    padding: 60px 24px;
+  }
+
+  .hero-section h1 {
+    font-size: 2.5rem !important;
+  }
+
+  .hero-text,
+  .vision-text {
+    font-size: 1.125rem !important;
+  }
+
+  .section-title,
+  .mission-content h2,
+  .tech-section h2,
+  .vision-section h2 {
+    font-size: 2rem !important;
+  }
+
+  .value-card {
+    margin-bottom: 1rem;
+  }
+
+  .particle {
+    display: none;
+  }
+}
+
+/* Values Section with Morphing Background */
+.values-section {
+  padding: 100px 24px;
+  background: #f8fafc;
+  position: relative;
+  text-align: center;
+}
+
+.section-title {
+  color: #1a1a1a !important;
+  font-size: 2.5rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 3rem !important;
+  text-align: center;
+}
+
+.value-card {
+  height: 100%;
+  border-radius: 16px;
+  padding: 2rem;
+  background: white;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.8s forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.value-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(99, 102, 241, 0.1),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.value-card:hover::before {
+  transform: translateX(100%);
+}
+
+.value-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.value-card h3 {
+  color: #1a1a1a !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin: 1rem 0 !important;
+}
+
+.value-card .ant-typography {
+  color: #4a5568 !important;
+  font-size: 1rem !important;
+  line-height: 1.6 !important;
+}
+
+/* Tech Section with Animated List */
+.tech-section {
+  padding: 100px 24px;
+  background: white;
+  position: relative;
+}
+
+.tech-section h2 {
+  color: #1a1a1a !important;
+  font-size: 2.5rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.tech-section .ant-typography {
+  color: #4a5568 !important;
+  font-size: 1.1rem !important;
+  margin-bottom: 2rem !important;
+}
+
+.tech-list {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+}
+
+.tech-list li {
+  color: #4a5568;
+  margin: 1rem 0;
+  padding-left: 2rem;
+  position: relative;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  transition: all 0.3s ease;
+}
+
+.tech-list li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #6366f1;
+  transition: all 0.3s ease;
+}
+
+.tech-list li:hover {
+  transform: translateX(10px);
+  color: #6366f1;
+}
+
+.tech-list li:hover::before {
+  transform: translateX(5px);
+}
+
+/* Animated Code Window */
+.code-window {
+  background: #1a1a2e;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.8s forwards 0.6s;
+  position: relative;
+}
+
+.code-window::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: codeScan 3s linear infinite;
+}
+
+@keyframes codeScan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.window-header {
+  background: #16213e;
+  padding: 0.75rem;
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.dot:nth-child(1) {
+  background: #ef4444;
+}
+.dot:nth-child(2) {
+  background: #f59e0b;
+}
+.dot:nth-child(3) {
+  background: #10b981;
+}
+
+.window-content {
+  padding: 1.5rem;
+}
+
+.window-content code {
+  color: #e5e7eb !important;
+  font-family: "Fira Code", monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Vision Section with Parallax */
+.vision-section {
+  padding: 100px 24px;
+  background: linear-gradient(-45deg, #1a1a2e, #16213e, #1e3a8a, #312e81);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.vision-section h2 {
+  color: white !important;
+  font-size: 2.5rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.vision-text {
+  color: rgba(255, 255, 255, 0.9) !important;
+  max-width: 800px;
+  margin: 2rem auto 0 !important;
+  font-size: 1.25rem !important;
+  line-height: 1.8 !important;
+  opacity: 0;
+  animation: fadeInUp 1s forwards;
+}
+
+/* Vision CTA Button */
+.vision-cta {
+  margin: 40px auto 0;
+  padding: 14px 32px;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+}
+
+.vision-cta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.35);
+}
+
+.vision-cta .btn-arrow {
+  font-size: 1.25rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .stats-grid {
+    flex-direction: column;
+  }
+
+  .hero-section,
+  .mission-section,
+  .values-section,
+  .tech-section,
+  .vision-section {
+    padding: 60px 24px;
+  }
+
+  .hero-section h1 {
+    font-size: 2.5rem !important;
+  }
+
+  .hero-text,
+  .vision-text {
+    font-size: 1.125rem !important;
+  }
+
+  .section-title,
+  .mission-content h2,
+  .tech-section h2,
+  .vision-section h2 {
+    font-size: 2rem !important;
+  }
+
+  .value-card {
+    margin-bottom: 1rem;
+  }
+
+  .particle {
+    display: none;
+  }
+}
+
+/* Utility Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Get Started Button */
+.get-started-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.get-started-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+}
+
+.get-started-btn:active {
+  transform: translateY(0);
+}
+
+.btn-arrow {
+  font-size: 1.1rem;
+  transition: transform 0.3s ease;
+}
+
+.get-started-btn:hover .btn-arrow {
+  transform: translateX(4px);
+}

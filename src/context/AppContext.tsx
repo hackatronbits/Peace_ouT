@@ -13,11 +13,13 @@ import { v4 as uuidv4 } from "uuid";
 import { validateModelApiKey } from "../config/modelConfig";
 import LoadingScreen from "../components/LoadingScreen/LoadingScreen";
 import NotFound from "../components/AppStatus/PageNotFound/NotFound";
-import { logInfo } from "../utils/logger";
-import { message } from "antd";
+import { logError, logInfo } from "../utils/logger";
+import { App } from "antd";
+import { featureUsageLogger } from "../utils/featureUsageLogger";
 
 interface Message {
   responseTime: number;
+  responseTokens: number;
   id: string;
   content: string;
   role: "user" | "assistant" | "system";
@@ -44,7 +46,16 @@ export interface TempMessage {
   content: string;
   role: "user" | "assistant";
   responseTime: number;
+  responseTokens: number;
   model: string;
+}
+
+interface ProjectFolder {
+  id: string;
+  name: string;
+  chatIds: string[];
+  createdAt: string;
+  isExpanded: boolean;
 }
 
 interface AppContextType {
@@ -55,8 +66,13 @@ interface AppContextType {
   setChats: React.Dispatch<React.SetStateAction<Chat[]>>;
   activeChat: Chat | null;
   setActiveChat: React.Dispatch<React.SetStateAction<Chat | null>>;
-  startNewChat: () => void;
-  addMessage: (messageData: Pick<Message, "content" | "role">) => Chat | null;
+  startNewChat: (folderId?: string) => void;
+  addMessage: (
+    messageData: Pick<Message, "content" | "role">,
+    folderId?: string,
+  ) => Chat | null;
+  deleteMessage: (messageId: string) => Promise<void>;
+  deleteTemporaryMessage: (index: number) => void;
   deleteChat: (chatId: string) => void;
   selectedModel: string;
   setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
@@ -80,6 +96,20 @@ interface AppContextType {
   togglePinChat: (chatId: string) => void;
   getPinnedChats: () => Chat[];
   getUnpinnedChats: () => Chat[];
+  deleteMessagesAfterIndex: (
+    messageId: string,
+  ) => Promise<{ isSingleMessage: boolean }>;
+  deleteTemporaryMessagesAfterIndex: (
+    index: number,
+  ) => Promise<{ isSingleMessage: boolean }>;
+  projectFolders: ProjectFolder[];
+  createProjectFolder: (name: string) => void;
+  deleteProjectFolder: (id: string, deleteChats?: boolean) => void;
+  renameProjectFolder: (id: string, newName: string) => void;
+  addChatToFolder: (folderId: string, chatId: string) => void;
+  removeChatFromFolder: (folderId: string, chatId: string) => void;
+  toggleFolderExpansion: (folderId: string) => void;
+  getFolderForChat: (chatId: string) => ProjectFolder | null;
 }
 
 const AppContext = createContext<AppContextType>({
@@ -94,6 +124,8 @@ const AppContext = createContext<AppContextType>({
   addMessage: () => {
     throw new Error("Not implemented");
   },
+  deleteMessage: async () => {},
+  deleteTemporaryMessage: () => {},
   deleteChat: () => {},
   selectedModel: "gpt-4o-mini",
   setSelectedModel: () => {},
@@ -117,6 +149,16 @@ const AppContext = createContext<AppContextType>({
   togglePinChat: () => {},
   getPinnedChats: () => [],
   getUnpinnedChats: () => [],
+  deleteMessagesAfterIndex: async () => ({ isSingleMessage: false }),
+  deleteTemporaryMessagesAfterIndex: async () => ({ isSingleMessage: false }),
+  projectFolders: [],
+  createProjectFolder: () => {},
+  deleteProjectFolder: (_id: string, _deleteChats?: boolean) => {},
+  renameProjectFolder: () => {},
+  addChatToFolder: () => {},
+  removeChatFromFolder: () => {},
+  toggleFolderExpansion: () => {},
+  getFolderForChat: () => null,
 });
 
 // Utility function to safely access localStorage
@@ -168,6 +210,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [agentType, setAgentType] = useState<string>("na");
   const [isTemporaryMode, setIsTemporaryMode] = useState<boolean>(false);
   const [temporaryMessages, setTemporaryMessages] = useState<TempMessage[]>([]);
+  const [projectFolders, setProjectFolders] = useState<ProjectFolder[]>(() => {
+    const savedFolders = safeLocalStorage.getItem("PC_projectFolders", "[]");
+    return JSON.parse(savedFolders);
+  });
+  const { message } = App.useApp();
 
   // Check if the current path exists in your app's routes
   const isValidRoute = (route: string) => {
@@ -215,6 +262,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       (actionType: "message" | "modelResponse", actionData: any) => void
     >();
   const currentChatRef = useRef<Chat | null>(null);
+  const currentFolderRef = useRef<string | null>(null);
 
   // Keep currentChatRef in sync with activeChat (USED FOR NEW CHAT)
   useEffect(() => {
@@ -257,7 +305,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           if (savedDarkMode) {
             setIsDarkMode(JSON.parse(savedDarkMode));
           }
-          console.groupEnd();
         } catch (error) {
           console.error("Error loading data from localStorage:", error);
           // Clear potentially corrupted data
@@ -285,7 +332,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [activeChat, mounted]);
 
-  // Basic functions without dependencies
   const toggleDarkMode = useCallback(() => {
     setIsDarkMode((prev) => !prev);
   }, []);
@@ -414,31 +460,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     return generateTitle();
   };
 
-  const startNewChat = useCallback(() => {
-    if (!mounted) {
-      console.error("Not mounted");
-      return;
-    }
-    setActiveChat(null);
-    localStorage.setItem("PC_selectedModel", "gpt-4o-mini");
-    setSelectedModel("gpt-4o-mini");
-    resetAgentSettings(); // Reset agent settings when starting new chat
-    document.title = "PromptCue";
-  }, [mounted]);
+  const startNewChat = useCallback(
+    async (folderId?: string) => {
+      if (!mounted) {
+        console.error("Not mounted");
+        return;
+      }
+
+      try {
+        setActiveChat(null);
+        resetAgentSettings();
+        // Store folderId in ref to use when first message is added
+        if (folderId) {
+          currentFolderRef.current = folderId;
+        } else {
+          currentFolderRef.current = null;
+        }
+        document.title = "PromptCue";
+        await featureUsageLogger({
+          featureName: "chat_management",
+          eventType: "new_chat_started",
+          eventMetadata: {
+            timestamp: new Date().toISOString(),
+            folderId,
+          },
+        });
+      } catch (error) {
+        logError("chat_management", "new_chat", error, {
+          component: "AppContext",
+          metadata: { model: localStorage.getItem("PC_selectedModel") },
+        });
+        message.error("Failed to create new chat. Please try again.", 3);
+      }
+    },
+    [mounted],
+  );
 
   const handleTemporaryModeToggle = useCallback(
-    (value: boolean) => {
+    async (value: boolean) => {
       try {
         if (value) {
           // Starting temporary chat
           startNewChat();
           setIsTemporaryMode(true);
           setTemporaryMessages([]);
+
+          await featureUsageLogger({
+            featureName: "chat_settings",
+            eventType: "temporary_mode_toggled",
+            eventMetadata: {
+              enabled: true,
+            },
+          });
         } else {
           // Ending temporary chat
           setIsTemporaryMode(false);
           setTemporaryMessages([]);
           startNewChat();
+
+          await featureUsageLogger({
+            featureName: "chat_settings",
+            eventType: "temporary_mode_toggled",
+            eventMetadata: {
+              enabled: false,
+            },
+          });
         }
       } catch (error) {
         console.error("Error toggling temporary mode:", error);
@@ -452,7 +538,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     (
       messageData: Pick<
         Message,
-        "content" | "role" | "responseTime" | "status" | "mode" | "agentType"
+        | "content"
+        | "role"
+        | "responseTime"
+        | "responseTokens"
+        | "status"
+        | "mode"
+        | "agentType"
       >,
     ) => {
       try {
@@ -474,6 +566,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           model: selectedModel,
           status: messageData.status,
           responseTime: messageData.responseTime,
+          responseTokens: messageData.responseTokens,
           mode: messageData.mode,
           agentType: messageData.agentType,
         };
@@ -499,6 +592,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
             updatedAt: new Date().toISOString(),
           };
           updatedChats = [...chats, updatedChat];
+
+          // If there's a pending folder ID, add the chat to that folder
+          const folderId = currentFolderRef.current;
+          if (folderId) {
+            addChatToFolder(folderId, updatedChat.id);
+            // Clear the folder ref
+            currentFolderRef.current = null;
+          }
         } else {
           // Update existing chat
           updatedChat = {
@@ -506,12 +607,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
             messages: [...currentChat.messages, newMessage],
             updatedAt: new Date().toISOString(),
           };
-          // Find and update the chat in the list, preserving order
           updatedChats = chats.map((chat) =>
             chat.id === currentChat.id ? updatedChat : chat,
           );
           if (!updatedChats.some((chat) => chat.id === currentChat.id)) {
-            // If chat wasn't found in the list, add it
             updatedChats = [...updatedChats, updatedChat];
           }
         }
@@ -531,12 +630,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (error) {
           console.error("Error saving to localStorage:", error);
         }
+
         logInfo("chat", "message_added", {
           component: "AppContext",
           metadata: {
             chatId: updatedChat.id,
             messageId: newMessage.id,
             model: selectedModel,
+            folderId: currentFolderRef.current,
           },
         });
         return updatedChat;
@@ -557,7 +658,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Utility functions
   const deleteChat = useCallback(
-    (chatId: string) => {
+    async (chatId: string) => {
+      featureUsageLogger({
+        featureName: "chat_management",
+        eventType: "delete_chat_started",
+        eventMetadata: {
+          chatId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      // Remove chat from any folders it belongs to
+      setProjectFolders((prevFolders) => {
+        const updatedFolders = prevFolders.map((folder) => ({
+          ...folder,
+          chatIds: folder.chatIds.filter((id) => id !== chatId),
+        }));
+        safeLocalStorage.setItem(
+          "PC_projectFolders",
+          JSON.stringify(updatedFolders),
+        );
+        return updatedFolders;
+      });
+
       setChats((prevChats) => {
         const newChats = prevChats.filter((chat) => chat.id !== chatId);
         safeLocalStorage.setItem("PC_chats", JSON.stringify(newChats));
@@ -572,7 +695,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setActiveChat(null);
         safeLocalStorage.removeItem("activeChat");
       }
-      console.groupEnd();
     },
     [activeChat],
   );
@@ -631,9 +753,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       setChats((prevChats) =>
         prevChats.map((chat) =>
-          chat.id === id ? { ...chat, isArchived: true } : chat,
+          chat.id === id
+            ? { ...chat, isArchived: true, updatedAt: new Date().toISOString() }
+            : chat,
         ),
       );
+      message.success("Chat archived successfully");
       // If the archived chat is active, clear it
       if (activeChat?.id === id) {
         setActiveChat(null);
@@ -643,17 +768,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Restore a chat from archive
-  const restoreChat = useCallback((id: string) => {
+  const restoreChat = useCallback(async (id: string) => {
     setChats((prevChats) =>
       prevChats.map((chat) =>
         chat.id === id ? { ...chat, isArchived: false } : chat,
       ),
     );
+    await featureUsageLogger({
+      featureName: "chat_management",
+      eventType: "restore_chat",
+      eventMetadata: {
+        chatId: id,
+        timestamp: new Date().toISOString(),
+      },
+    });
   }, []);
 
   const exportChat = useCallback(
     async (chatId: string) => {
       try {
+        await featureUsageLogger({
+          featureName: "chat_management",
+          eventType: "export_chat_started",
+          eventMetadata: {
+            chatId,
+            timestamp: new Date().toISOString(),
+          },
+        });
         const chatToExport = chats.find((chat) => chat.id === chatId);
         if (!chatToExport) {
           message.error("Chat not found");
@@ -711,6 +852,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         window.URL.revokeObjectURL(url);
 
         message.success("Chat exported successfully");
+
+        await featureUsageLogger({
+          featureName: "chat_settings",
+          eventType: "export_chat_finished",
+          eventMetadata: {
+            chatId,
+            fileName,
+            timestamp: new Date().toISOString(),
+          },
+        });
       } catch (error) {
         console.error("Error exporting chat:", error);
         message.error("Failed to export chat. Please try again.");
@@ -724,6 +875,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setChats((prevChats) => {
       const updatedChats = prevChats.map((chat) => {
         if (chat.id === chatId) {
+          featureUsageLogger({
+            featureName: "chat_settings",
+            eventType: "pinned_chat_toggle",
+            eventMetadata: {
+              chatId,
+              pinned: chat.isPinned,
+            },
+          });
           return {
             ...chat,
             isPinned: !chat.isPinned,
@@ -769,7 +928,305 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       });
   }, [chats]);
 
-  // Context value
+  // Delete message function for regular chats
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      try {
+        if (!activeChat) return;
+
+        // Create updated messages array without the deleted message
+        const updatedMessages = activeChat.messages.filter(
+          (msg) => msg.id !== messageId,
+        );
+
+        // If this was the last message, delete the entire chat
+        if (updatedMessages.length === 0) {
+          const updatedChats = chats.filter(
+            (chat) => chat.id !== activeChat.id,
+          );
+          setChats(updatedChats);
+          setActiveChat(null);
+          safeLocalStorage.setItem("PC_chats", JSON.stringify(updatedChats));
+          safeLocalStorage.removeItem("PC_activeChat");
+          message.success("Chat deleted successfully", 1);
+          return;
+        }
+
+        // Update the chat with new messages
+        const updatedChat = {
+          ...activeChat,
+          messages: updatedMessages,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Update chats array
+        const updatedChats = chats.map((chat) =>
+          chat.id === activeChat.id ? updatedChat : chat,
+        );
+
+        // Update state and localStorage
+        setActiveChat(updatedChat);
+        setChats(updatedChats);
+        safeLocalStorage.setItem("PC_chats", JSON.stringify(updatedChats));
+        safeLocalStorage.setItem("PC_activeChat", JSON.stringify(updatedChat));
+
+        await featureUsageLogger({
+          featureName: "chat_management",
+          eventType: "delete_message",
+          eventMetadata: {
+            chatId: activeChat.id,
+            messageId,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        message.success("Message deleted successfully", 1);
+      } catch (error) {
+        logError("chat_management", "delete_message", error, {
+          component: "AppContext",
+          metadata: { messageId },
+        });
+        message.error("Failed to delete message. Please try again.", 1);
+      }
+    },
+    [activeChat, chats, message],
+  );
+
+  // Delete message function for temporary chats
+  const deleteTemporaryMessage = useCallback(
+    (index: number) => {
+      try {
+        const updatedMessages = [...temporaryMessages];
+        updatedMessages.splice(index, 1);
+
+        // If this was the last message, clear all temporary messages
+        if (updatedMessages.length === 0) {
+          setTemporaryMessages([]);
+          message.success("All temporary messages cleared");
+          return;
+        }
+
+        setTemporaryMessages(updatedMessages);
+        message.success("Temporary message deleted successfully");
+      } catch (error) {
+        logError("chat_management", "delete_temporary_message", error, {
+          component: "AppContext",
+          metadata: { index },
+        });
+        message.error("Failed to delete temporary message. Please try again.");
+      }
+    },
+    [temporaryMessages, message],
+  );
+
+  // Delete messages after a specific index (including the index) and trigger regeneration
+  const deleteMessagesAfterIndex = useCallback(
+    async (messageId: string) => {
+      try {
+        if (!activeChat) return { isSingleMessage: false };
+
+        // Find the message to regenerate
+        const messageIndex = activeChat.messages.findIndex(
+          (msg) => msg.id === messageId,
+        );
+        if (messageIndex === -1) return { isSingleMessage: false };
+
+        // Find the last user message before this AI response
+        const lastUserMessageIndex =
+          activeChat.messages
+            .slice(0, messageIndex)
+            .map((msg, idx) => ({ msg, idx }))
+            .filter(({ msg }) => msg.role === "user")
+            .pop()?.idx ?? -1;
+
+        // Check if this is the only user message
+        const isSingleMessage =
+          lastUserMessageIndex === -1 || lastUserMessageIndex === 0;
+
+        const updatedMessages = isSingleMessage
+          ? [activeChat.messages[0]] // Always keep the first message
+          : activeChat.messages.slice(0, lastUserMessageIndex); // Keep messages up to and including last user message
+
+        // Update the chat with new messages
+        const updatedChat = {
+          ...activeChat,
+          messages: updatedMessages,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Update chats array
+        const updatedChats = chats.map((chat) =>
+          chat.id === activeChat.id ? updatedChat : chat,
+        );
+
+        // Update state and localStorage
+        setActiveChat(updatedChat);
+        setChats(updatedChats);
+        safeLocalStorage.setItem("PC_chats", JSON.stringify(updatedChats));
+        safeLocalStorage.setItem("PC_activeChat", JSON.stringify(updatedChat));
+
+        featureUsageLogger({
+          featureName: "chat_management",
+          eventType: "regenerate_message",
+          eventMetadata: {
+            chatId: activeChat.id,
+            messageId,
+            isSingleMessage,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        return { isSingleMessage };
+      } catch (error) {
+        logError("chat_management", "regenerate_message", error, {
+          component: "AppContext",
+          metadata: { messageId },
+        });
+        message.error("Failed to regenerate message. Please try again.");
+        return { isSingleMessage: false };
+      }
+    },
+    [activeChat, chats, message],
+  );
+
+  // Delete temporary messages after a specific index (including the index)
+  const deleteTemporaryMessagesAfterIndex = async (index: number) => {
+    // Check if the index is valid
+    if (index < 0 || index >= temporaryMessages.length) {
+      return { isSingleMessage: false };
+    }
+
+    // Find the last user message before this index
+    const lastUserMessageIndex =
+      temporaryMessages
+        .slice(0, index)
+        .map((msg, idx) => ({ msg, idx }))
+        .filter(({ msg }) => msg.role === "user")
+        .pop()?.idx ?? -1;
+
+    // Check if there are user messages
+    const userMessages = temporaryMessages
+      .slice(0, index)
+      .filter((msg) => msg.role === "user");
+    const isSingleMessage = userMessages.length === 1;
+
+    // Create updated messages array, preserving all user messages if there are multiple
+    const updatedMessages = isSingleMessage
+      ? [temporaryMessages[0]] // Keep the user message
+      : temporaryMessages.slice(0, lastUserMessageIndex); // Keep all messages up to and including the last user message
+
+    setTemporaryMessages(updatedMessages);
+    return { isSingleMessage };
+  };
+
+  // Project Folder Management
+  const createProjectFolder = useCallback((name: string) => {
+    const newFolder: ProjectFolder = {
+      id: uuidv4(),
+      name,
+      chatIds: [],
+      createdAt: new Date().toISOString(),
+      isExpanded: true,
+    };
+    setProjectFolders((prev) => [newFolder, ...prev]);
+    featureUsageLogger({
+      featureName: "chat_management",
+      eventType: "create_folder",
+      eventMetadata: {
+        folderId: newFolder.id,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }, []);
+
+  const deleteProjectFolder = useCallback(
+    (id: string, deleteChats: boolean = false) => {
+      setProjectFolders((prev) => {
+        const folder = prev.find((f) => f.id === id);
+        if (!folder) return prev;
+
+        if (deleteChats) {
+          // Delete both folder and its chats
+          setChats((prevChats) =>
+            prevChats.filter((chat) => !folder.chatIds.includes(chat.id)),
+          );
+        }
+
+        return prev.filter((f) => f.id !== id);
+      });
+    },
+    [setChats],
+  );
+
+  const renameProjectFolder = useCallback((id: string, newName: string) => {
+    setProjectFolders((prev) =>
+      prev.map((folder) =>
+        folder.id === id ? { ...folder, name: newName } : folder,
+      ),
+    );
+  }, []);
+
+  const addChatToFolder = useCallback((folderId: string, chatId: string) => {
+    setProjectFolders((prev) => {
+      // First, remove the chat from any folder it's currently in
+      const foldersWithoutChat = prev.map((folder) => ({
+        ...folder,
+        chatIds: folder.chatIds.filter((id) => id !== chatId),
+      }));
+
+      // Then, add it to the target folder
+      return foldersWithoutChat.map((folder) => {
+        if (folder.id === folderId) {
+          return { ...folder, chatIds: [...folder.chatIds, chatId] };
+        }
+        return folder;
+      });
+    });
+  }, []);
+
+  const removeChatFromFolder = useCallback(
+    (folderId: string, chatId: string) => {
+      setProjectFolders((prev) =>
+        prev.map((folder) =>
+          folder.id === folderId
+            ? {
+                ...folder,
+                chatIds: folder.chatIds.filter((id) => id !== chatId),
+              }
+            : folder,
+        ),
+      );
+    },
+    [],
+  );
+
+  const toggleFolderExpansion = useCallback((folderId: string) => {
+    setProjectFolders((prev) =>
+      prev.map((folder) =>
+        folder.id === folderId
+          ? { ...folder, isExpanded: !folder.isExpanded }
+          : folder,
+      ),
+    );
+  }, []);
+
+  const getFolderForChat = useCallback(
+    (chatId: string) => {
+      return (
+        projectFolders.find((folder) => folder.chatIds.includes(chatId)) || null
+      );
+    },
+    [projectFolders],
+  );
+
+  // Save folders to localStorage whenever they change
+  useEffect(() => {
+    safeLocalStorage.setItem(
+      "PC_projectFolders",
+      JSON.stringify(projectFolders),
+    );
+  }, [projectFolders]);
+
   const contextValue = useMemo(
     () => ({
       isDarkMode,
@@ -781,6 +1238,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       setActiveChat,
       startNewChat,
       addMessage,
+      deleteMessage,
+      deleteTemporaryMessage,
       deleteChat,
       selectedModel,
       setSelectedModel,
@@ -804,6 +1263,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       togglePinChat,
       getPinnedChats,
       getUnpinnedChats,
+      deleteMessagesAfterIndex,
+      deleteTemporaryMessagesAfterIndex,
+      projectFolders,
+      createProjectFolder,
+      deleteProjectFolder,
+      renameProjectFolder,
+      addChatToFolder,
+      removeChatFromFolder,
+      toggleFolderExpansion,
+      getFolderForChat,
     }),
     [
       isDarkMode,
@@ -815,6 +1284,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       setActiveChat,
       startNewChat,
       addMessage,
+      deleteMessage,
+      deleteTemporaryMessage,
       deleteChat,
       selectedModel,
       setSelectedModel,
@@ -838,6 +1309,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       togglePinChat,
       getPinnedChats,
       getUnpinnedChats,
+      deleteMessagesAfterIndex,
+      deleteTemporaryMessagesAfterIndex,
+      projectFolders,
+      createProjectFolder,
+      deleteProjectFolder,
+      renameProjectFolder,
+      addChatToFolder,
+      removeChatFromFolder,
+      toggleFolderExpansion,
+      getFolderForChat,
     ],
   );
 
@@ -862,5 +1343,5 @@ export const useApp = () => {
   return context;
 };
 
-export type { Chat, Message };
+export type { Chat, Message, ProjectFolder };
 export default AppContext;

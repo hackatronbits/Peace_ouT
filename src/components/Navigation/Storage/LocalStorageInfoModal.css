@@ -1,0 +1,207 @@
+.storage-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: linear-gradient(
+    135deg,
+    rgba(244, 63, 94, 0.1),
+    rgba(251, 113, 133, 0.15)
+  );
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  color: #e11d48;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  animation: tagPulse 2s infinite;
+  cursor: pointer;
+}
+
+@keyframes tagPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.2);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+.storage-tag:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(244, 63, 94, 0.15),
+    rgba(251, 113, 133, 0.2)
+  );
+  border-color: rgba(244, 63, 94, 0.3);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.25);
+}
+
+.storage-tag:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.storage-tag .anticon {
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #e11d48, #fb7185);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: iconSpin 20s linear infinite;
+}
+
+@keyframes iconSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode support */
+[data-theme="dark"] .storage-tag {
+  background: linear-gradient(
+    135deg,
+    rgba(244, 63, 94, 0.2),
+    rgba(251, 113, 133, 0.25)
+  );
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+}
+
+[data-theme="dark"] .storage-tag:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(244, 63, 94, 0.25),
+    rgba(251, 113, 133, 0.3)
+  );
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+/* Pause animations when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+  .storage-tag {
+    animation: none;
+  }
+  .storage-tag .anticon {
+    animation: none;
+  }
+}
+
+.storage-modal .ant-modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.storage-info-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.storage-overview {
+  background: linear-gradient(
+    145deg,
+    rgba(66, 153, 225, 0.1),
+    rgba(99, 179, 237, 0.1)
+  );
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(66, 153, 225, 0.2);
+}
+
+.storage-progress {
+  margin: 16px 0;
+}
+
+.storage-progress span {
+  color: #000000 !important;
+}
+
+.storage-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  background: var(--background-color, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-title {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #718096);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary, #2d3748);
+}
+
+.info-section {
+  display: block !important;
+  background: var(--background-secondary, #f7fafc);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: var(--background-color, #ffffff);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.info-icon {
+  color: var(--primary-color, #4299e1);
+  font-size: 1.2rem;
+  margin-top: 2px;
+}
+
+.dark .info-section,
+.dark .stat-card,
+.dark .info-item {
+  background: linear-gradient(
+    145deg,
+    rgba(66, 153, 225, 0.1),
+    rgba(99, 179, 237, 0.1)
+  ) !important;
+  border-color: #898787 !important;
+}
+
+.dark .stat-title {
+  color: #ffffff !important;
+}
+
+.dark .stat-value,
+.dark .storage-progress span {
+  color: #898787 !important;
+}

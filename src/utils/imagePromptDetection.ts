@@ -1,19 +1,9 @@
-import { logAPIInfo, logAPIWarning } from "./apiLogger";
-
 interface ImagePromptResult {
   isImageRequest: boolean;
 }
 
 export const analyzeImagePrompt = (prompt: string): ImagePromptResult => {
   const prompt_lower = prompt.toLowerCase().trim();
-
-  logAPIInfo("image_prompt_detection", "analyze", {
-    component: "image_prompt_detection",
-    action: "analyze_start",
-    metadata: {
-      prompt_length: prompt.length,
-    },
-  });
 
   // Check for explicit negations first
   const negationPatterns = [
@@ -27,13 +17,6 @@ export const analyzeImagePrompt = (prompt: string): ImagePromptResult => {
 
   for (const pattern of negationPatterns) {
     if (prompt_lower.includes(pattern)) {
-      logAPIInfo("image_prompt_detection", "analyze", {
-        component: "image_prompt_detection",
-        action: "negation_detected",
-        metadata: {
-          pattern,
-        },
-      });
       return {
         isImageRequest: false,
       };
@@ -64,13 +47,6 @@ export const analyzeImagePrompt = (prompt: string): ImagePromptResult => {
 
   for (const pattern of imageRequestPatterns) {
     if (prompt_lower.includes(pattern)) {
-      logAPIInfo("image_prompt_detection", "analyze", {
-        component: "image_prompt_detection",
-        action: "image_request_detected",
-        metadata: {
-          pattern,
-        },
-      });
       return {
         isImageRequest: true,
       };
@@ -92,26 +68,11 @@ export const analyzeImagePrompt = (prompt: string): ImagePromptResult => {
 
   for (const pattern of descriptivePatterns) {
     if (prompt_lower.includes(pattern)) {
-      logAPIInfo("image_prompt_detection", "analyze", {
-        component: "image_prompt_detection",
-        action: "descriptive_pattern_detected",
-        metadata: {
-          pattern,
-        },
-      });
       return {
         isImageRequest: true,
       };
     }
   }
-
-  logAPIInfo("image_prompt_detection", "analyze", {
-    component: "image_prompt_detection",
-    action: "no_pattern_detected",
-    metadata: {
-      prompt_length: prompt.length,
-    },
-  });
 
   return {
     isImageRequest: false,

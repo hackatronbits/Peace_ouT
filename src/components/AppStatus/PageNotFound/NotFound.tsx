@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect } from "react";
 import { Button } from "antd";
 import Head from "next/head";
@@ -19,7 +21,8 @@ const NotFound: React.FC = () => {
     });
     // Update the page title when component mounts
     if (typeof window !== "undefined") {
-      const currentPath = window.location.pathname;
+      const currentPath =
+        typeof window !== "undefined" ? window.location.pathname : "";
       document.title = `404 - Page Not Found | ${currentPath} - PromptCue`;
     }
     // Cleanup - reset title when component unmounts

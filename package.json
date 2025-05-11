@@ -1,0 +1,114 @@
+{
+  "name": "promptcue",
+  "version": "0.1.0",
+  "private": true,
+  "browser": {
+    "fs": false,
+    "os": false,
+    "path": false
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "format": "prettier --write .",
+    "lint": "next lint",
+    "prepare": "husky",
+    "release-alpha": "npx release-it --preRelease=alpha",
+    "release-beta": "npx release-it --preRelease=beta",
+    "release": "npx release-it"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.2.6",
+    "@commitlint/cli": "^19.2.2",
+    "@commitlint/config-conventional": "^19.2.2",
+    "@release-it/conventional-changelog": "^8.0.1",
+    "@types/nodemailer": "^6.4.15",
+    "@types/uuid": "^10.0.0",
+    "antd": "^5.12.5",
+    "axios": "^1.6.8",
+    "axios-hooks": "^5.0.2",
+    "bcryptjs": "^2.4.3",
+    "email-validator-dns-provider-rules": "^1.2.1",
+    "glob-to-regexp": "^0.4.1",
+    "gray-matter": "^4.0.3",
+    "limiter": "^2.1.0",
+    "markdown-to-jsx": "^7.5.0",
+    "next": "14.0.4",
+    "prettier": "^3.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.0.1",
+    "react-markdown": "^9.0.3",
+    "rehype-highlight": "^7.0.1",
+    "rehype-raw": "^7.0.0",
+    "release-it": "^17.2.0",
+    "remark-gfm": "^4.0.0",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.2.18",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.4",
+    "husky": "^9.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ],
+    "rules": {
+      "subject-case": [
+        2,
+        "never",
+        [
+          "upper-case",
+          "pascal-case",
+          "start-case"
+        ]
+      ]
+    }
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "chore: release v${version}"
+    },
+    "github": {
+      "release": true
+    },
+    "npm": {
+      "publish": false
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "infile": "CHANGELOG.md",
+        "preset": {
+          "name": "conventionalcommits",
+          "types": [
+            {
+              "type": "feat",
+              "section": "Features"
+            },
+            {
+              "type": "fix",
+              "section": "Bug Fixes"
+            },
+            {
+              "type": "doc",
+              "section": "Documentation"
+            },
+            {
+              "type": "refactor",
+              "section": "Code Cleaning"
+            },
+            {}
+          ]
+        }
+      }
+    }
+  }
+}

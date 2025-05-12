@@ -309,7 +309,7 @@ const ChatManagement: React.FC<ChatManagementProps> = ({
         <div className="chat-sidebar-header">
           <Button
             type="primary"
-            className="new-chat-button"
+            className="new-chat-button bg-red-500 "
             onClick={() => handleChatClick("NA", "new")}
             icon={<PlusCircleFilled style={{ strokeWidth: 50 }} />}
           >

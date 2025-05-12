@@ -51,12 +51,75 @@ export default function Features() {
         "Fine-tune AI behavior with advanced parameters for precise control over responses and interactions.",
       benefits: ["Temperature Control", "Context Length", "Response Tuning"],
     },
+    {
+      icon: "🔀",
+      title: "Multi-Model Routing",
+      description:
+        "Automatically route your queries to the most suitable AI model for optimal results, balancing speed, cost, and accuracy.",
+      benefits: ["Smart Model Selection", "Cost Efficiency", "Performance Optimization"],
+    },
+    {
+      icon: "🔒",
+      title: "Enterprise Security",
+      description:
+        "Advanced security features including end-to-end encryption, role-based access control, and compliance monitoring.",
+      benefits: ["Data Encryption", "Access Control", "Compliance Tools"],
+    },
+    {
+      icon: "🌐",
+      title: "API Integration",
+      description:
+        "Seamlessly integrate AI capabilities into your existing applications with our comprehensive API suite.",
+      benefits: ["REST API", "Webhooks", "SDK Support"],
+    },
+    {
+      icon: "📱",
+      title: "Mobile Experience",
+      description:
+        "Full-featured mobile interface with offline capabilities and push notifications for on-the-go access.",
+      benefits: ["Offline Mode", "Push Alerts", "Mobile Optimization"],
+    },
+    {
+      icon: "🔄",
+      title: "Workflow Automation",
+      description:
+        "Create automated AI workflows to streamline repetitive tasks and boost productivity.",
+      benefits: ["Task Automation", "Custom Triggers", "Integration Tools"],
+    },
+    {
+      icon: "🎯",
+      title: "Context Management",
+      description:
+        "Advanced context handling for maintaining conversation history and managing long-term interactions.",
+      benefits: ["Memory Management", "Context Window", "History Control"],
+    },
+    {
+      icon: "🔍",
+      title: "Advanced Search",
+      description:
+        "Powerful search capabilities across conversations, documents, and AI interactions with semantic understanding.",
+      benefits: ["Semantic Search", "Filter Options", "Quick Access"],
+    },
+    {
+      icon: "📈",
+      title: "Performance Monitoring",
+      description:
+        "Real-time monitoring of AI model performance, response times, and resource utilization.",
+      benefits: ["Latency Tracking", "Resource Usage", "Performance Alerts"],
+    },
+    {
+      icon: "🤝",
+      title: "Collaboration Tools",
+      description:
+        "Team collaboration features including shared workspaces, real-time editing, and role-based permissions.",
+      benefits: ["Shared Spaces", "Team Roles", "Real-time Sync"],
+    }
   ];
 
   return (
     <>
       {/* Features Section */}
-      <section className="features-section" id="features">
+      <section className="features-section" id="features" aria-label="Platform Features">
         <h2>Platform Features</h2>
         <p>
           Experience the next generation of AI interaction with our powerful

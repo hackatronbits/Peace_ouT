@@ -128,6 +128,32 @@ export default function SupportedModels() {
               <span>DeepSeek Chat (V3)</span>
             </div>
           </div>
+
+          <div className="model-card">
+            <div className="supported-model-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                width="32"
+                height="32"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <text x="12" y="16" textAnchor="middle" fontSize="10" fill="#fff">M</text>
+              </svg>
+            </div>
+            <h3>Meta AI</h3>
+            <p className="model-description">
+              Access Meta's Llama 3 models for open, high-performance language understanding and generation.
+            </p>
+            <div className="model-features">
+              <span>Llama 3 8B</span>
+              <span>Llama 3 70B</span>
+              <span>Llama 2</span>
+            </div>
+            <div className="model-note">
+              <em>Note: Open-source models offer enhanced privacy and local deployment options.</em>
+            </div>
+          </div>
         </div>
       </section>
     </>
